@@ -1,0 +1,13 @@
+name: "Agent Cleanup"
+
+on:
+  schedule:
+    - cron: '15 8 * * 0'  # Sundays at 8:15 AM UTC
+  workflow_dispatch:        # Manual trigger
+
+jobs:
+  cleanup:
+    uses: jnurre64/claude-agent-dispatch/.github/workflows/cleanup.yml@v1
+    secrets:
+      agent_pat: ${{ secrets.AGENT_PAT }}
+      gist_pat: ${{ secrets.AGENT_GIST_PAT }}

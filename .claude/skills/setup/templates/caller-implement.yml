@@ -1,0 +1,16 @@
+name: "Claude Agent: Implement"
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  implement:
+    if: >-
+      github.event.label.name == 'agent:plan-approved' &&
+      github.actor != '{{BOT_USER}}'
+    uses: jnurre64/claude-agent-dispatch/.github/workflows/dispatch-implement.yml@v1
+    with:
+      bot_user: "{{BOT_USER}}"
+    secrets:
+      agent_pat: ${{ secrets.AGENT_PAT }}

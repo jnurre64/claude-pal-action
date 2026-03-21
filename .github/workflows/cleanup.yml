@@ -1,0 +1,53 @@
+name: "Agent Dispatch: Cleanup"
+
+on:
+  workflow_call:
+    inputs:
+      cleanup_script:
+        description: 'Path to cleanup.sh on the runner'
+        required: false
+        type: string
+        default: '~/agent-infra/scripts/cleanup.sh'
+      timeout_minutes:
+        description: 'Job timeout in minutes'
+        required: false
+        type: number
+        default: 15
+      runner_labels:
+        description: 'JSON array of runner labels'
+        required: false
+        type: string
+        default: '["self-hosted", "cleanup"]'
+      verbose:
+        description: 'Enable verbose logging'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      agent_pat:
+        description: 'Fine-grained PAT for repo operations'
+        required: true
+      gist_pat:
+        description: 'Classic PAT with gist scope (optional)'
+        required: false
+
+jobs:
+  cleanup:
+    name: Repository Cleanup
+    runs-on: ${{ fromJSON(inputs.runner_labels) }}
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+      actions: write
+    steps:
+      - name: Run cleanup
+        env:
+          GH_TOKEN: ${{ secrets.agent_pat }}
+          GITHUB_TOKEN: ${{ secrets.agent_pat }}
+          AGENT_GIST_PAT: ${{ secrets.gist_pat }}
+        run: |
+          ${{ inputs.cleanup_script }} \
+            "${{ github.repository }}" \
+            --no-dry-run ${{ inputs.verbose && '--verbose' || '' }}

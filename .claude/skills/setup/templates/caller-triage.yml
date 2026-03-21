@@ -1,0 +1,16 @@
+name: "Claude Agent: Triage"
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  triage:
+    if: >-
+      github.event.label.name == 'agent' &&
+      github.actor != '{{BOT_USER}}'
+    uses: jnurre64/claude-agent-dispatch/.github/workflows/dispatch-triage.yml@v1
+    with:
+      bot_user: "{{BOT_USER}}"
+    secrets:
+      agent_pat: ${{ secrets.AGENT_PAT }}

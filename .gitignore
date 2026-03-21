@@ -1,0 +1,5 @@
+# Project-specific configuration (contains bot username, paths, etc.)
+config.env
+
+# Generated workflows (from setup.sh)
+generated-workflows/
