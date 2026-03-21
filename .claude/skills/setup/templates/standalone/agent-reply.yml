@@ -1,0 +1,33 @@
+name: "Claude Agent: Reply"
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: claude-agent-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  handle-reply:
+    if: >-
+      github.event.comment.user.login != '{{BOT_USER}}' &&
+      !github.event.issue.pull_request &&
+      contains(toJSON(github.event.issue.labels.*.name), 'agent:needs-info')
+    runs-on: [self-hosted, agent]
+    timeout-minutes: 125
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Run agent dispatch
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          GITHUB_TOKEN: ${{ secrets.AGENT_PAT }}
+          AGENT_CONFIG: ${{ github.workspace }}/.agent-dispatch/config.env
+        run: |
+          .agent-dispatch/scripts/agent-dispatch.sh \
+            issue_reply \
+            "${{ github.repository }}" \
+            "${{ github.event.issue.number }}"

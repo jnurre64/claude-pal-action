@@ -19,7 +19,23 @@ bash ${CLAUDE_SKILL_DIR}/../../scripts/check-prereqs.sh
 
 If any required tools are missing, help the user install them before continuing. If `config.env` doesn't exist yet, that's expected — we'll create it in this flow.
 
-## Step 1: Gather Project Information
+## Step 1: Choose Setup Mode
+
+Use the `AskUserQuestion` tool to ask the user which mode they prefer:
+
+**Reference mode** (recommended):
+- Thin workflow files in the user's repo call back to this upstream repo via `uses: jnurre64/claude-agent-dispatch/...@v1`
+- Scripts run from a clone of this repo on the runner (`~/agent-infra/`)
+- Updates come automatically via version tags and `git pull`
+- Best for: users who want automatic updates and minimal files in their repo
+
+**Standalone mode**:
+- All scripts, prompts, config, and workflows are copied directly into the user's repo under `.agent-dispatch/`
+- No upstream dependency — the user owns every file and can modify freely
+- No automatic updates — the user manages their own copy
+- Best for: users who want full control, plan to customize heavily, or prefer no external dependencies
+
+## Step 2: Gather Project Information
 
 Use the `AskUserQuestion` tool to collect the following. If the user provided an `owner/repo` argument, use that instead of asking.
 
@@ -28,16 +44,25 @@ Use the `AskUserQuestion` tool to collect the following. If the user provided an
 3. **Default branch** — usually `main`, but confirm
 4. **Test command** (optional) — command to run before creating PRs (e.g., `npm test`, `pytest`, `cargo test`). If not set, the pre-PR test gate is skipped.
 5. **Extra tools** (optional) — project-specific tools the agent needs (e.g., `Bash(npm:*)` for Node.js, `Bash(cargo:*)` for Rust, `Bash(Godot:*)` for Godot)
+6. **Local clone path** (standalone mode only) — where the target repo is cloned on this machine
 
-## Step 2: Generate config.env
+## Step 3: Generate Configuration
 
-Read the template at `config.env.example` (in the repo root, two levels up from this skill directory).
+### Reference mode
+Read the template at `config.env.example` (in the repo root). Fill in the user's answers and write to `config.env` in the repo root. Show the user the generated config and ask if they want to adjust anything.
 
-Fill in the user's answers and write the result to `config.env` in the repo root. Include comments explaining each value. Leave optional values commented out if the user didn't provide them.
+### Standalone mode
+Create the `.agent-dispatch/` directory in the user's target repo. Copy:
+- `scripts/agent-dispatch.sh` and `scripts/cleanup.sh` → `.agent-dispatch/scripts/`
+- `scripts/lib/*.sh` → `.agent-dispatch/scripts/lib/`
+- `scripts/check-prereqs.sh` and `scripts/create-labels.sh` → `.agent-dispatch/scripts/`
+- `prompts/*.md` → `.agent-dispatch/prompts/`
+- `labels.txt` → `.agent-dispatch/`
+- Generated `config.env` → `.agent-dispatch/config.env`
 
-Show the user the generated config and ask if they want to adjust anything.
+Make all scripts executable after copying.
 
-## Step 3: Review Default Prompts
+## Step 4: Review Default Prompts
 
 Show the user the default prompts in `prompts/` (repo root). Explain what each one does:
 
@@ -51,9 +76,10 @@ Ask the user:
 - Does their project have a CLAUDE.md? The prompts instruct the agent to read it. If not, recommend creating one with coding conventions and architecture overview.
 - Do they want to customize any prompts now, or start with defaults and customize later?
 
-If they want to customize, help them create modified versions and update `config.env` with the `AGENT_PROMPT_*` paths. If defaults are fine, move on.
+For standalone mode: customizations are made directly in `.agent-dispatch/prompts/`.
+For reference mode: customizations go in separate files pointed to by `AGENT_PROMPT_*` in `config.env`.
 
-## Step 4: Create Labels
+## Step 5: Create Labels
 
 Run the label creation script against their target repo:
 
@@ -61,25 +87,26 @@ Run the label creation script against their target repo:
 bash ${CLAUDE_SKILL_DIR}/../../scripts/create-labels.sh OWNER/REPO
 ```
 
-Replace `OWNER/REPO` with the actual value from Step 1. Confirm the labels were created successfully.
+Replace `OWNER/REPO` with the actual value from Step 2. Confirm the labels were created successfully.
 
-## Step 5: Generate Caller Workflows
+## Step 6: Generate Workflows
 
-Read each template in this skill's `templates/` directory:
-- `caller-triage.yml`
-- `caller-implement.yml`
-- `caller-reply.yml`
-- `caller-review.yml`
-- `caller-cleanup.yml`
+### Reference mode
+Read each template in this skill's `templates/` directory (the `caller-*.yml` files, NOT the `standalone/` subdirectory):
+- `caller-triage.yml`, `caller-implement.yml`, `caller-reply.yml`, `caller-review.yml`, `caller-cleanup.yml`
+
+### Standalone mode
+Read each template in `templates/standalone/`:
+- `agent-triage.yml`, `agent-implement.yml`, `agent-reply.yml`, `agent-review.yml`, `agent-cleanup.yml`
 
 For each template:
-1. Replace `{{BOT_USER}}` with the bot username from Step 1
+1. Replace `{{BOT_USER}}` with the bot username from Step 2
 2. Show the user the generated workflow
 3. Write it to the user's target repo at `.github/workflows/`
 
-Ask the user where their target repo is cloned locally so you can write the files there. If they don't have it cloned, write the files to a temporary directory and tell them to copy the files.
+Ask the user where their target repo is cloned locally so you can write the files there. For standalone mode, this was already collected in Step 2.
 
-## Step 6: Guide Secret Setup
+## Step 7: Guide Secret Setup
 
 The target repo needs these GitHub Actions secrets:
 - **`AGENT_PAT`** — Fine-grained PAT for the bot account (required)
@@ -95,25 +122,36 @@ gh secret set AGENT_PAT --repo OWNER/REPO
 gh secret set AGENT_GIST_PAT --repo OWNER/REPO
 ```
 
-If the user hasn't created a bot account or PAT yet, point them to `docs/bot-account.md` (when available) or walk them through:
+If the user hasn't created a bot account or PAT yet, walk them through:
 1. Create a new GitHub account for the bot
 2. Create a fine-grained PAT with scopes: Contents (rw), Issues (rw), Pull requests (rw), Metadata (r)
 3. Add the bot as a collaborator on their target repo
 
-## Step 7: Validate
+## Step 8: Validate
 
 Summarize everything that was set up:
+- Setup mode chosen (reference vs standalone)
 - Config file location
 - Labels created
 - Workflow files generated and where they were written
-- Secrets that need to be set (if not done in Step 6)
+- Secrets that need to be set (if not done in Step 7)
+- For standalone: list of files copied to `.agent-dispatch/`
 
-## Step 8: Next Steps
+## Step 9: Next Steps
 
-Tell the user what to do next:
+### Reference mode
 1. **Commit and push** the workflow files to their target repo
-2. **Set up a self-hosted runner** (if not already done) — point to `docs/runners.md` when available
+2. **Set up a self-hosted runner** (if not already done)
 3. **Ensure the runner has `claude` CLI installed** and the ANTHROPIC_API_KEY environment variable set
-4. **Clone the agent-infra repo** on the runner: `git clone https://github.com/jnurre64/claude-agent-dispatch.git ~/agent-infra`
+4. **Clone this repo** on the runner: `git clone https://github.com/jnurre64/claude-agent-dispatch.git ~/agent-infra`
 5. **Copy config.env** to the runner at `~/agent-infra/config.env`
 6. **Test with a dry run**: Create a test issue, add the `agent` label, and watch the agent triage it
+
+### Standalone mode
+1. **Review and customize** `.agent-dispatch/prompts/` for your project's conventions
+2. **Review** `.agent-dispatch/config.env` — ensure settings are correct
+3. **Commit and push** all files (`.agent-dispatch/` and `.github/workflows/`) to the target repo
+4. **Set up a self-hosted runner** with `claude` CLI installed
+5. **Test with a dry run**: Create a test issue, add the `agent` label, and watch the agent triage it
+
+Note for standalone users: You own all the files now. Modify scripts, prompts, and workflows as needed for your project. There is no upstream dependency.

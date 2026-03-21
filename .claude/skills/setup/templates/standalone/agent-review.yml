@@ -1,0 +1,32 @@
+name: "Claude Agent: PR Review"
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  group: claude-agent-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  handle-review:
+    if: >-
+      github.event.review.state == 'changes_requested' &&
+      github.event.review.user.login != '{{BOT_USER}}'
+    runs-on: [self-hosted, agent]
+    timeout-minutes: 125
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Run agent dispatch
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          GITHUB_TOKEN: ${{ secrets.AGENT_PAT }}
+          AGENT_CONFIG: ${{ github.workspace }}/.agent-dispatch/config.env
+        run: |
+          .agent-dispatch/scripts/agent-dispatch.sh \
+            pr_review \
+            "${{ github.repository }}" \
+            "${{ github.event.pull_request.number }}"

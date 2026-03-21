@@ -1,0 +1,27 @@
+name: "Agent Cleanup"
+
+on:
+  schedule:
+    - cron: '15 8 * * 0'  # Sundays at 8:15 AM UTC
+  workflow_dispatch:        # Manual trigger
+
+jobs:
+  cleanup:
+    name: Repository Cleanup
+    runs-on: [self-hosted, cleanup]
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+      actions: write
+    steps:
+      - name: Run cleanup
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          GITHUB_TOKEN: ${{ secrets.AGENT_PAT }}
+          AGENT_GIST_PAT: ${{ secrets.AGENT_GIST_PAT }}
+        run: |
+          .agent-dispatch/scripts/cleanup.sh \
+            "${{ github.repository }}" \
+            --no-dry-run --verbose
