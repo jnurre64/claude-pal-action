@@ -235,7 +235,6 @@ $(echo "$test_output" | tail -100)
 
 This PR was created by the Claude Code agent.
 
-### Summary
 ${claude_output:0:2000}
 
 ---
