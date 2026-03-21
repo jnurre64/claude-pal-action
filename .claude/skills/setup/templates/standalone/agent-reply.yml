@@ -21,6 +21,9 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Run agent dispatch
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}

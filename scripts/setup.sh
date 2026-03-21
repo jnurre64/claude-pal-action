@@ -169,13 +169,37 @@ else
 fi
 mkdir -p "$WORKFLOWS_DIR"
 
+# Check for existing workflow files that would be overwritten
+CONFLICTS=()
 for template in "$TEMPLATES_DIR"/*.yml; do
     filename=$(basename "$template")
-    # For reference mode, rename caller-*.yml to agent-*.yml
     output_name="${filename/caller-/agent-}"
-    sed "s/{{BOT_USER}}/$BOT_USER/g" "$template" > "$WORKFLOWS_DIR/$output_name"
-    echo -e "  ${GREEN}✓${NC} $output_name"
+    if [ -f "$WORKFLOWS_DIR/$output_name" ]; then
+        CONFLICTS+=("$output_name")
+    fi
 done
+
+if [ ${#CONFLICTS[@]} -gt 0 ]; then
+    echo -e "  ${YELLOW}!${NC} These workflow files already exist and will be overwritten:"
+    for f in "${CONFLICTS[@]}"; do
+        echo "      - $f"
+    done
+    read -rp "  Continue and overwrite? [y/N]: " OVERWRITE
+    OVERWRITE="${OVERWRITE:-N}"
+    if [[ ! "$OVERWRITE" =~ ^[Yy] ]]; then
+        echo -e "  ${YELLOW}!${NC} Skipped workflow generation. Create them manually from the templates."
+        WORKFLOWS_DIR=""
+    fi
+fi
+
+if [ -n "$WORKFLOWS_DIR" ]; then
+    for template in "$TEMPLATES_DIR"/*.yml; do
+        filename=$(basename "$template")
+        output_name="${filename/caller-/agent-}"
+        sed "s/{{BOT_USER}}/$BOT_USER/g" "$template" > "$WORKFLOWS_DIR/$output_name"
+        echo -e "  ${GREEN}✓${NC} $output_name"
+    done
+fi
 
 echo ""
 

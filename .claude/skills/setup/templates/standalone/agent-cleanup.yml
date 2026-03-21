@@ -16,6 +16,9 @@ jobs:
       pull-requests: read
       actions: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Run cleanup
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
