@@ -88,7 +88,8 @@ counter() {
 
 log() {
     local level="$1"; shift
-    local msg="[$(date -u '+%Y-%m-%d %H:%M:%S')] [$level] $*"
+    local msg
+    msg="[$(date -u '+%Y-%m-%d %H:%M:%S')] [$level] $*"
     echo "$msg" | tee -a "$LOG_FILE"
 }
 
