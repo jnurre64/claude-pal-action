@@ -226,21 +226,30 @@ $(echo "$test_output" | tail -100)
         log "Pushing $commit_count commit(s)..."
         git -C "$WORKTREE_DIR" push -u origin "$BRANCH_NAME" 2>/dev/null
 
-        # Create PR
-        local pr_url
-        pr_url=$(gh pr create --repo "$REPO" \
-            --head "$BRANCH_NAME" \
-            --title "Agent: ${issue_title}" \
-            --body "## Automated PR for #${NUMBER}
+        # Build PR body with commit log as fallback for sparse Claude output
+        local commit_log
+        commit_log=$(git -C "$WORKTREE_DIR" log --format="- %s" origin/main..HEAD 2>/dev/null | head -20)
+
+        local pr_body="## Automated PR for #${NUMBER}
 
 This PR was created by the Claude Code agent.
 
 ${claude_output:0:2000}
 
+### Commits
+${commit_log}
+
 ---
 Please review carefully. The agent will address review feedback automatically.
 
-Closes #${NUMBER}" 2>/dev/null || echo "FAILED")
+Closes #${NUMBER}"
+
+        # Create PR
+        local pr_url
+        pr_url=$(gh pr create --repo "$REPO" \
+            --head "$BRANCH_NAME" \
+            --title "Agent: ${issue_title}" \
+            --body "$pr_body" 2>/dev/null || echo "FAILED")
 
         if [ "$pr_url" != "FAILED" ]; then
             log "PR created: $pr_url"
