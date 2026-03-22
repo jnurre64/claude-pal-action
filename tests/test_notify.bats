@@ -211,3 +211,89 @@ _source_notify() {
     username=$(echo "$output" | jq -r '.username')
     assert_equal "$username" "Agent Dispatch"
 }
+
+# ===================================================================
+# Sending via webhook
+# ===================================================================
+
+@test "notify send: calls curl with correct webhook URL" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    echo "$calls" | grep -q "https://discord.com/api/webhooks/123/abc"
+}
+
+@test "notify send: includes Content-Type header" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    echo "$calls" | grep -q "application/json"
+}
+
+@test "notify send: includes thread_id when configured" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
+    export AGENT_NOTIFY_DISCORD_THREAD_ID="987654321"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    echo "$calls" | grep -q "thread_id=987654321"
+}
+
+@test "notify send: does not include thread_id when not configured" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
+    export AGENT_NOTIFY_DISCORD_THREAD_ID=""
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    ! echo "$calls" | grep -q "thread_id"
+}
+
+@test "notify send: does not fail when curl fails" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" "error" 1
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+}
+
+@test "notify: skipped events do not call curl" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
+    export AGENT_NOTIFY_LEVEL="failures"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    [ -z "$calls" ]
+}

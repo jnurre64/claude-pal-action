@@ -113,6 +113,22 @@ _notify_build_embed() {
         }'
 }
 
+# ─── Send to Discord webhook ──────────────────────────────────────
+# Usage: _notify_send <json_payload>
+_notify_send() {
+    local json="$1"
+    local webhook_url="${AGENT_NOTIFY_DISCORD_WEBHOOK}"
+
+    # Append thread_id query parameter if configured
+    if [ -n "${AGENT_NOTIFY_DISCORD_THREAD_ID:-}" ]; then
+        webhook_url="${webhook_url}?thread_id=${AGENT_NOTIFY_DISCORD_THREAD_ID}"
+    fi
+
+    curl -s -o /dev/null -X POST "$webhook_url" \
+        -H "Content-Type: application/json" \
+        -d "$json" 2>/dev/null || true
+}
+
 # ─── Main notification function ────────────────────────────────────
 # Usage: notify <event_type> <title> <url> [description]
 #
