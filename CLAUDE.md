@@ -17,7 +17,9 @@ Run `/setup` to configure this toolkit for your project.
 ## Development
 
 - All shell scripts must pass `shellcheck` with zero warnings
-- Run locally: `shellcheck scripts/*.sh scripts/lib/*.sh`
-- CI runs ShellCheck on every push and PR to main
+- Tests use BATS-Core (git submodules in `tests/`)
+- Run checks: `shellcheck scripts/*.sh scripts/lib/*.sh && ./tests/bats/bin/bats tests/`
+- CI runs both ShellCheck and BATS on every push and PR
 - Use `set -euo pipefail` in all scripts
 - Keep functions focused — one purpose per function
+- Bug fix? Add a `REGRESSION vX.Y.Z:` test to prevent recurrence
