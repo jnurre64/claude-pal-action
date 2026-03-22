@@ -148,12 +148,16 @@ if [ "$SETUP_MODE" = "2" ]; then
         echo "version: $CURRENT_SHA"
         echo "synced_at: \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\""
         echo "checksums:"
-        for tracked_file in scripts/agent-dispatch.sh scripts/lib/common.sh scripts/lib/worktree.sh scripts/lib/data-fetch.sh scripts/lib/defaults.sh scripts/cleanup.sh scripts/check-prereqs.sh scripts/create-labels.sh prompts/triage.md prompts/implement.md prompts/reply.md prompts/review.md labels.txt; do
-            if [ -f "$AGENT_DIR/$tracked_file" ]; then
-                file_checksum=$(sha256sum "$AGENT_DIR/$tracked_file" | cut -d' ' -f1)
-                echo "  ${tracked_file}: \"sha256:${file_checksum}\""
-            fi
-        done
+        # Dynamically find all copied files for checksum tracking
+        while IFS= read -r -d '' tracked_path; do
+            tracked_file="${tracked_path#"$AGENT_DIR/"}"
+            file_checksum=$(sha256sum "$tracked_path" | cut -d' ' -f1)
+            echo "  ${tracked_file}: \"sha256:${file_checksum}\""
+        done < <(find "$AGENT_DIR/scripts" "$AGENT_DIR/prompts" -type f -print0 2>/dev/null)
+        if [ -f "$AGENT_DIR/labels.txt" ]; then
+            file_checksum=$(sha256sum "$AGENT_DIR/labels.txt" | cut -d' ' -f1)
+            echo "  labels.txt: \"sha256:${file_checksum}\""
+        fi
     } > "$AGENT_DIR/.upstream"
     echo -e "  ${GREEN}✓${NC} Version tracking written (.upstream)"
 fi

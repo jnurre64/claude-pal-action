@@ -58,22 +58,17 @@ if [ "$STORED_VERSION" = "$LATEST_SHA" ]; then
     exit 0
 fi
 
-# ── Files to track ───────────────────────────────────────────────
-TRACKED_FILES=(
-    "scripts/agent-dispatch.sh"
-    "scripts/lib/common.sh"
-    "scripts/lib/worktree.sh"
-    "scripts/lib/data-fetch.sh"
-    "scripts/lib/defaults.sh"
-    "scripts/cleanup.sh"
-    "scripts/check-prereqs.sh"
-    "scripts/create-labels.sh"
-    "prompts/triage.md"
-    "prompts/implement.md"
-    "prompts/reply.md"
-    "prompts/review.md"
-    "labels.txt"
-)
+# ── Discover trackable files from upstream ────────────────────────
+# Dynamically finds all scripts, prompts, and config files rather than
+# using a hardcoded list. This ensures new files added upstream are detected.
+TRACKED_FILES=()
+while IFS= read -r -d '' file; do
+    # Get path relative to upstream root
+    rel_path="${file#"$UPSTREAM_DIR/"}"
+    TRACKED_FILES+=("$rel_path")
+done < <(find "$UPSTREAM_DIR/scripts" "$UPSTREAM_DIR/prompts" -type f -print0 2>/dev/null)
+# Also track labels.txt
+[ -f "$UPSTREAM_DIR/labels.txt" ] && TRACKED_FILES+=("labels.txt")
 
 # ── Categorize files ─────────────────────────────────────────────
 AUTO_UPDATE=()
