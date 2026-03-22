@@ -28,3 +28,91 @@ _source_notify() {
     assert_success
     assert_output ""
 }
+
+# ===================================================================
+# Notification level filtering
+# ===================================================================
+
+@test "notify level 'actionable': sends plan_posted" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/test/token"
+    export AGENT_NOTIFY_LEVEL="actionable"
+    _source_notify
+
+    run _notify_should_send "plan_posted"
+    assert_success
+}
+
+@test "notify level 'actionable': skips implement_started" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/test/token"
+    export AGENT_NOTIFY_LEVEL="actionable"
+    _source_notify
+
+    run _notify_should_send "implement_started"
+    assert_failure
+}
+
+@test "notify level 'actionable': skips tests_passed" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/test/token"
+    export AGENT_NOTIFY_LEVEL="actionable"
+    _source_notify
+
+    run _notify_should_send "tests_passed"
+    assert_failure
+}
+
+@test "notify level 'actionable': sends agent_failed" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/test/token"
+    export AGENT_NOTIFY_LEVEL="actionable"
+    _source_notify
+
+    run _notify_should_send "agent_failed"
+    assert_success
+}
+
+@test "notify level 'failures': sends tests_failed" {
+    export AGENT_NOTIFY_LEVEL="failures"
+    _source_notify
+
+    run _notify_should_send "tests_failed"
+    assert_success
+}
+
+@test "notify level 'failures': sends agent_failed" {
+    export AGENT_NOTIFY_LEVEL="failures"
+    _source_notify
+
+    run _notify_should_send "agent_failed"
+    assert_success
+}
+
+@test "notify level 'failures': skips plan_posted" {
+    export AGENT_NOTIFY_LEVEL="failures"
+    _source_notify
+
+    run _notify_should_send "plan_posted"
+    assert_failure
+}
+
+@test "notify level 'failures': skips pr_created" {
+    export AGENT_NOTIFY_LEVEL="failures"
+    _source_notify
+
+    run _notify_should_send "pr_created"
+    assert_failure
+}
+
+@test "notify level 'all': sends implement_started" {
+    export AGENT_NOTIFY_LEVEL="all"
+    _source_notify
+
+    run _notify_should_send "implement_started"
+    assert_success
+}
+
+@test "notify level 'all': sends tests_passed" {
+    export AGENT_NOTIFY_LEVEL="all"
+    _source_notify
+
+    run _notify_should_send "tests_passed"
+    assert_success
+}
