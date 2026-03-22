@@ -116,3 +116,98 @@ _source_notify() {
     run _notify_should_send "tests_passed"
     assert_success
 }
+
+# ===================================================================
+# Embed formatting
+# ===================================================================
+
+@test "notify embed: plan_posted has blue color (3447003) and correct title" {
+    _source_notify
+
+    run _notify_build_embed "plan_posted" "Add sprite caching" "https://github.com/org/repo/issues/42" "Plan summary here"
+    assert_success
+
+    local color title
+    color=$(echo "$output" | jq -r '.embeds[0].color')
+    title=$(echo "$output" | jq -r '.embeds[0].title')
+    assert_equal "$color" "3447003"
+    assert_equal "$title" "[INFO] Plan Ready -- #99: Add sprite caching"
+}
+
+@test "notify embed: tests_failed has red color (15548997)" {
+    _source_notify
+
+    run _notify_build_embed "tests_failed" "Fix login bug" "https://github.com/org/repo/issues/5" "npm test exited 1"
+    assert_success
+
+    local color
+    color=$(echo "$output" | jq -r '.embeds[0].color')
+    assert_equal "$color" "15548997"
+}
+
+@test "notify embed: pr_created has green color (5763719)" {
+    _source_notify
+
+    run _notify_build_embed "pr_created" "Add feature X" "https://github.com/org/repo/pull/87" "3 commits"
+    assert_success
+
+    local color
+    color=$(echo "$output" | jq -r '.embeds[0].color')
+    assert_equal "$color" "5763719"
+}
+
+@test "notify embed: review_feedback has yellow color (16776960)" {
+    _source_notify
+
+    run _notify_build_embed "review_feedback" "PR #87" "https://github.com/org/repo/pull/87" "Changes requested"
+    assert_success
+
+    local color
+    color=$(echo "$output" | jq -r '.embeds[0].color')
+    assert_equal "$color" "16776960"
+}
+
+@test "notify embed: includes footer with automation disclosure" {
+    _source_notify
+
+    run _notify_build_embed "plan_posted" "Issue title" "https://example.com" "desc"
+    assert_success
+
+    local footer
+    footer=$(echo "$output" | jq -r '.embeds[0].footer.text')
+    [[ "$footer" == *"Automated by claude-agent-dispatch"* ]]
+}
+
+@test "notify embed: includes issue URL in field" {
+    _source_notify
+
+    run _notify_build_embed "plan_posted" "Issue title" "https://github.com/org/repo/issues/42" "desc"
+    assert_success
+
+    echo "$output" | jq -e '.embeds[0]' | grep -q "https://github.com/org/repo/issues/42"
+}
+
+@test "notify embed: truncates description longer than 4000 chars" {
+    _source_notify
+
+    local long_desc
+    long_desc=$(printf 'x%.0s' {1..5000})
+
+    run _notify_build_embed "plan_posted" "Issue title" "https://example.com" "$long_desc"
+    assert_success
+
+    local desc_len
+    desc_len=$(echo "$output" | jq -r '.embeds[0].description' | wc -c)
+    [ "$desc_len" -le 4010 ]
+}
+
+@test "notify embed: uses webhook username 'Agent Dispatch'" {
+    _source_notify
+
+    run _notify_build_embed "plan_posted" "Issue title" "https://example.com" "desc"
+    assert_success
+
+    local username
+    username=$(echo "$output" | jq -r '.username')
+    assert_equal "$username" "Agent Dispatch"
+}
