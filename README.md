@@ -1,4 +1,7 @@
-# claude-agent-dispatch
+<p align="center">
+  <img src=".github/icon.png" width="150" alt="Claude Agent Dispatch">
+</p>
+<h1 align="center">claude-agent-dispatch</h1>
 
 A reusable dispatch system for running [Claude Code](https://claude.com/claude-code) agents on GitHub issues — autonomously triaging, planning, implementing, and addressing PR review feedback, all orchestrated through GitHub Actions and a label-driven state machine.
 
