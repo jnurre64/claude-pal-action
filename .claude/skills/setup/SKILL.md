@@ -106,6 +106,15 @@ For each template:
 
 Ask the user where their target repo is cloned locally so you can write the files there. For standalone mode, this was already collected in Step 2.
 
+### Discord bot dispatch (optional)
+
+If the user has set up the Discord bot (see `docs/notifications.md`), also deploy the dispatch template:
+
+- **Reference mode:** `caller-dispatch.yml`
+- **Standalone mode:** `agent-dispatch.yml` (from `templates/standalone/`)
+
+This template enables the Discord bot's Approve, Retry, Comment, and Request Changes actions to trigger agent workflows. It is only needed if the Discord bot is in use.
+
 ## Step 7: Guide Secret Setup
 
 The target repo needs these GitHub Actions secrets:
