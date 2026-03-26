@@ -6,6 +6,7 @@ import pytest
 
 from bot import (
     gh_command,
+    gh_dispatch,
     handle_button_interaction,
     FeedbackModal,
     ALLOWED_USERS,
@@ -131,6 +132,32 @@ class TestHandleButtonInteraction:
         with patch("bot.ALLOWED_USERS", {"123"}):
             await handle_button_interaction(interaction)
         interaction.response.send_modal.assert_called_once()
+
+
+class TestGhDispatch:
+    @patch("bot.gh_command")
+    def test_fires_repository_dispatch(self, mock_gh):
+        mock_gh.return_value = (True, "")
+        gh_dispatch("org/repo", "agent-implement", 42)
+        mock_gh.assert_called_once()
+        args = mock_gh.call_args[0][0]
+        assert args[0] == "api"
+        assert "repos/org/repo/dispatches" in args[1]
+
+    @patch("bot.gh_command")
+    def test_passes_event_type_and_issue_number(self, mock_gh):
+        mock_gh.return_value = (True, "")
+        gh_dispatch("org/repo", "agent-triage", 7)
+        args = mock_gh.call_args[0][0]
+        assert "event_type=agent-triage" in " ".join(args)
+        assert "client_payload[issue_number]=7" in " ".join(args)
+
+    @patch("bot.gh_command")
+    def test_returns_gh_command_result(self, mock_gh):
+        mock_gh.return_value = (False, "not found")
+        ok, err = gh_dispatch("org/repo", "agent-implement", 1)
+        assert ok is False
+        assert err == "not found"
 
 
 class TestFeedbackModal:

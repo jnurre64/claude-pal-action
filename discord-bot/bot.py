@@ -136,6 +136,15 @@ def gh_command(args: list[str]) -> tuple[bool, str]:
         return False, "Error: command timed out"
 
 
+def gh_dispatch(repo: str, event_type: str, issue_number: int) -> tuple[bool, str]:
+    """Fire a repository_dispatch event to trigger a workflow."""
+    return gh_command([
+        "api", f"repos/{repo}/dispatches",
+        "-f", f"event_type={event_type}",
+        "-f", f"client_payload[issue_number]={issue_number}",
+    ])
+
+
 _ALL_AGENT_LABELS = [
     "agent:failed", "agent:triage", "agent:needs-info", "agent:ready",
     "agent:in-progress", "agent:pr-open", "agent:plan-review", "agent:plan-approved",
