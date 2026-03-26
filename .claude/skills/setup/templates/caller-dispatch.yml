@@ -1,0 +1,33 @@
+name: "Claude Agent: Discord Dispatch"
+
+on:
+  repository_dispatch:
+    types: [agent-triage, agent-implement, agent-reply]
+
+jobs:
+  triage:
+    if: github.event.action == 'agent-triage'
+    uses: jnurre64/claude-agent-dispatch/.github/workflows/dispatch-triage.yml@v1
+    with:
+      bot_user: "{{BOT_USER}}"
+      issue_number: "${{ github.event.client_payload.issue_number }}"
+    secrets:
+      agent_pat: ${{ secrets.AGENT_PAT }}
+
+  implement:
+    if: github.event.action == 'agent-implement'
+    uses: jnurre64/claude-agent-dispatch/.github/workflows/dispatch-implement.yml@v1
+    with:
+      bot_user: "{{BOT_USER}}"
+      issue_number: "${{ github.event.client_payload.issue_number }}"
+    secrets:
+      agent_pat: ${{ secrets.AGENT_PAT }}
+
+  reply:
+    if: github.event.action == 'agent-reply'
+    uses: jnurre64/claude-agent-dispatch/.github/workflows/dispatch-reply.yml@v1
+    with:
+      bot_user: "{{BOT_USER}}"
+      issue_number: "${{ github.event.client_payload.issue_number }}"
+    secrets:
+      agent_pat: ${{ secrets.AGENT_PAT }}
