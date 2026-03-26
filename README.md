@@ -174,6 +174,10 @@ claude-agent-dispatch/
 └── docs/                        # Full documentation
 ```
 
+## Disclaimer
+
+Claude Agent Dispatch is an independent, community-built open-source project. It is not affiliated with, endorsed by, or sponsored by Anthropic, PBC. "Claude" and "Claude Code" are trademarks of Anthropic. This project uses Claude Code as its underlying agent and references these trademarks solely to describe that functionality.
+
 ## License
 
 MIT
