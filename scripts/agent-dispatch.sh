@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ─── Ensure tools are in PATH ───────────────────────────────────
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:${DOTNET_ROOT:-$HOME/.dotnet}:$PATH"
 
 # Allow claude -p to run even if called from within a Claude Code session
 unset CLAUDECODE 2>/dev/null || true
@@ -17,6 +17,44 @@ unset CLAUDECODE 2>/dev/null || true
 EVENT_TYPE="${1:?Usage: agent-dispatch.sh <event_type> <repo> <number>}"
 REPO="${2:?}"
 NUMBER="${3:?}"  # Issue or PR number
+
+# ─── Global error trap ──────────────────────────────────────────
+# Catch unexpected errors (config failures, missing tools, script bugs)
+# and post a comment on the issue so failures aren't silent.
+_on_unexpected_error() {
+    local exit_code=$?
+    local line=${1:-unknown}
+    # Best-effort: every command uses || true since gh/notify may be
+    # unavailable (they might be the thing that's broken).
+    gh issue comment "$NUMBER" --repo "$REPO" \
+        --body "## Agent Infrastructure Error
+
+The agent encountered an unexpected error and could not complete.
+
+| Detail | Value |
+|--------|-------|
+| **Script** | \`agent-dispatch.sh\` line $line |
+| **Event** | \`$EVENT_TYPE\` |
+| **Exit code** | $exit_code |
+| **Runner** | ${RUNNER_NAME:-unknown} |
+
+Check the [workflow run logs](https://github.com/${REPO}/actions) for details." 2>/dev/null || true
+
+    # Try to set the failed label (set_label may not be loaded yet)
+    if command -v set_label &>/dev/null; then
+        set_label "agent:failed" 2>/dev/null || true
+    else
+        gh issue edit "$NUMBER" --repo "$REPO" --add-label "agent:failed" 2>/dev/null || true
+    fi
+
+    # Try to send a notification (notify may not be loaded yet)
+    if command -v notify &>/dev/null; then
+        notify "agent_failed" "Issue #${NUMBER}" \
+            "https://github.com/${REPO}/issues/${NUMBER}" \
+            "Unexpected error at line $line (exit code $exit_code)" 2>/dev/null || true
+    fi
+}
+trap '_on_unexpected_error $LINENO' ERR
 
 # ─── Load configuration ─────────────────────────────────────────
 # Layered config: defaults (committed) → overrides (gitignored) → defaults.sh
