@@ -25,7 +25,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
           GITHUB_TOKEN: ${{ secrets.AGENT_PAT }}
-          AGENT_CONFIG: ${{ github.workspace }}/.agent-dispatch/config.env
+          AGENT_CONFIG: ${{ github.workspace }}/.agent-dispatch/config.env  # override file (gitignored, optional)
         run: |
           .agent-dispatch/scripts/agent-dispatch.sh \
             new_issue \
@@ -48,7 +48,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
           GITHUB_TOKEN: ${{ secrets.AGENT_PAT }}
-          AGENT_CONFIG: ${{ github.workspace }}/.agent-dispatch/config.env
+          AGENT_CONFIG: ${{ github.workspace }}/.agent-dispatch/config.env  # override file (gitignored, optional)
         run: |
           .agent-dispatch/scripts/agent-dispatch.sh \
             implement \
@@ -71,7 +71,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT }}
           GITHUB_TOKEN: ${{ secrets.AGENT_PAT }}
-          AGENT_CONFIG: ${{ github.workspace }}/.agent-dispatch/config.env
+          AGENT_CONFIG: ${{ github.workspace }}/.agent-dispatch/config.env  # override file (gitignored, optional)
         run: |
           .agent-dispatch/scripts/agent-dispatch.sh \
             issue_reply \

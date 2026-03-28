@@ -12,7 +12,8 @@ Run `/setup` to configure this toolkit for your project.
 - `scripts/lib/` — Modular functions: logging, labels, worktrees, data fetching, defaults
 - `prompts/` — Default agent prompts (triage, implement, reply, review)
 - `.github/workflows/dispatch-*.yml` — Reusable workflows called by consuming repos
-- `config.env` — Project-specific configuration (not committed, see `config.env.example`)
+- `config.defaults.env` — Project defaults, committed (see `config.defaults.env.example`)
+- `config.env` — Sensitive overrides, gitignored (see `config.env.example`)
 
 ## Development
 
