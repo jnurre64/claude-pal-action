@@ -49,7 +49,7 @@ Use the `AskUserQuestion` tool to collect the following. If the user provided an
 ## Step 3: Generate Configuration
 
 ### Reference mode
-Read the template at `config.env.example` (in the repo root). Fill in the user's answers and write to `config.env` in the repo root. Show the user the generated config and ask if they want to adjust anything.
+Read the template at `config.defaults.env.example` (in the repo root). Fill in the user's answers and write to `config.env` in the repo root (reference mode uses a single file since it's not committed to a repo). Show the user the generated config and ask if they want to adjust anything.
 
 ### Standalone mode
 Create the `.agent-dispatch/` directory in the user's target repo. Copy:
@@ -58,7 +58,12 @@ Create the `.agent-dispatch/` directory in the user's target repo. Copy:
 - `scripts/check-prereqs.sh` and `scripts/create-labels.sh` → `.agent-dispatch/scripts/`
 - `prompts/*.md` → `.agent-dispatch/prompts/`
 - `labels.txt` → `.agent-dispatch/`
-- Generated `config.env` → `.agent-dispatch/config.env`
+- Generated `config.defaults.env` → `.agent-dispatch/config.defaults.env` (non-sensitive project config, committed)
+
+**Important:** Configuration uses a layered approach:
+- `config.defaults.env` — **committed** to the repo. Contains non-sensitive project config (bot username, timeouts, tool permissions, test commands). This file MUST NOT contain secrets, tokens, or credentials.
+- `config.env` — **gitignored**, optional. Contains sensitive overrides (Discord tokens, webhook URLs, GitHub tokens). Values here override `config.defaults.env`.
+- Environment variables — highest precedence, override both files.
 
 Make all scripts executable after copying.
 

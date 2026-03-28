@@ -19,17 +19,38 @@ REPO="${2:?}"
 NUMBER="${3:?}"  # Issue or PR number
 
 # ─── Load configuration ─────────────────────────────────────────
-# Source project-specific config if it exists
-AGENT_CONFIG="${AGENT_CONFIG:-$HOME/agent-infra/config.env}"
-if [ -f "$AGENT_CONFIG" ]; then
+# Layered config: defaults (committed) → overrides (gitignored) → defaults.sh
+#
+# 1. config.defaults.env — committed, non-sensitive project config
+# 2. config.env           — gitignored, optional sensitive overrides (GH_TOKEN, etc.)
+# 3. defaults.sh          — fills in anything still unset
+#
+# Environment variables always take highest precedence.
+
+# Source committed defaults first (standalone mode: .agent-dispatch/config.defaults.env)
+AGENT_DEFAULTS="${SCRIPT_DIR}/../config.defaults.env"
+if [ -f "$AGENT_DEFAULTS" ]; then
     # shellcheck source=/dev/null
-    source "$AGENT_CONFIG"
-    # Resolve config directory for relative prompt paths
-    CONFIG_DIR="$(cd "$(dirname "$AGENT_CONFIG")" && pwd)"
+    source "$AGENT_DEFAULTS"
+    CONFIG_DIR="$(cd "$(dirname "$AGENT_DEFAULTS")" && pwd)"
     export CONFIG_DIR
 fi
 
-# Source defaults (fills in anything not set by config.env)
+# Source optional overrides (may contain secrets — never commit this file)
+AGENT_CONFIG="${AGENT_CONFIG:-}"
+if [ -n "$AGENT_CONFIG" ] && [ -f "$AGENT_CONFIG" ]; then
+    # shellcheck source=/dev/null
+    source "$AGENT_CONFIG"
+    CONFIG_DIR="$(cd "$(dirname "$AGENT_CONFIG")" && pwd)"
+    export CONFIG_DIR
+elif [ -f "${SCRIPT_DIR}/../config.env" ]; then
+    # shellcheck source=/dev/null
+    source "${SCRIPT_DIR}/../config.env"
+    CONFIG_DIR="$(cd "$(dirname "${SCRIPT_DIR}/../config.env")" && pwd)"
+    export CONFIG_DIR
+fi
+
+# Source defaults (fills in anything not set by either config file)
 # shellcheck source=lib/defaults.sh
 source "${SCRIPT_DIR}/lib/defaults.sh"
 
