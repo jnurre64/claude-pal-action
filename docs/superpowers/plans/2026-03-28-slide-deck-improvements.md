@@ -4,9 +4,9 @@
 
 **Goal:** Improve the Slidev presentation deck with professional styling, expanded content slides, fixed diagrams, and refined positioning — while keeping the 30-minute time budget.
 
-**Architecture:** Switch to the `seriph` theme for professional serif typography, add custom CSS for gradient accents and dark-mode polish, restructure existing slides to fix diagram cutoff issues, and add 4 new content slides (requirements, expanded comparison, file layout, positioning). Additional talking points are woven into existing slides or speaker notes.
+**Architecture:** Stay on the `default` theme for full control, add comprehensive custom `style.css` (dark background, gradient accents, polished tables/code), switch fonts to Inter + JetBrains Mono, add global components for persistent decorations, configure Mermaid dark theming. Restructure existing slides to fix diagram cutoff issues, and add 4 new content slides (requirements, expanded comparison, file layout, benefits). Additional talking points are woven into existing slides or speaker notes.
 
-**Tech Stack:** Slidev, `@slidev/theme-seriph`, Mermaid, UnoCSS, custom CSS
+**Tech Stack:** Slidev (default theme), custom CSS, Inter/JetBrains Mono, Mermaid (dark), UnoCSS
 
 **Location:** `E:/DemoPresentations/`
 
@@ -63,91 +63,157 @@ Net: +3 slides (14 → 17). Time impact: ~1-2 minutes of additional slide conten
 
 ---
 
-### Task 1: Switch to seriph theme and add custom styling
+### Task 1: Add professional dark styling, fonts, and global components
 
 **Files:**
-- Modify: `E:/DemoPresentations/package.json`
 - Modify: `E:/DemoPresentations/slides.md` (frontmatter only)
 - Create: `E:/DemoPresentations/style.css` (global custom styles)
+- Create: `E:/DemoPresentations/global-top.vue` (gradient accent bar)
 
-The `seriph` theme provides elegant serif typography and built-in dark/light support. We'll layer custom CSS on top for gradient accents and polished spacing.
+Stay on the `default` theme for full control. Add Inter + JetBrains Mono fonts, dark color scheme, gradient accents, polished table/code styling, Mermaid dark config, and a persistent top accent bar.
 
-- [ ] **Step 1: Install the seriph theme**
-
-```bash
-cd E:/DemoPresentations
-npm install @slidev/theme-seriph
-```
-
-- [ ] **Step 2: Update the frontmatter in slides.md**
+- [ ] **Step 1: Update the frontmatter in slides.md**
 
 Replace the existing frontmatter block (lines 1-11) with:
 
 ```yaml
 ---
-theme: seriph
+theme: default
 title: "Claude Agent Dispatch"
 info: |
   An Open-Source Agent Orchestrator Built on GitHub Actions
 class: text-center
 drawings:
   persist: false
-transition: slide-left
+transition: fade
 mdc: true
-colorSchema: dark
+fonts:
+  sans: Inter
+  mono: JetBrains Mono
+  provider: google
+highlighter: shiki
+lineNumbers: false
+mermaid:
+  theme: dark
+  themeVariables:
+    primaryColor: '#1e40af'
+    primaryTextColor: '#e2e8f0'
+    primaryBorderColor: '#3b82f6'
+    secondaryColor: '#1e293b'
+    lineColor: '#60a5fa'
+    textColor: '#e2e8f0'
+    fontFamily: 'Inter, sans-serif'
 ---
 ```
 
-Key changes: `theme: seriph`, added `colorSchema: dark` for a professional dark-mode presentation.
+Key changes: Inter + JetBrains Mono fonts, `transition: fade`, Mermaid dark theme variables, Shiki highlighter.
 
-- [ ] **Step 3: Create custom global styles**
+- [ ] **Step 2: Create comprehensive global styles**
 
 Create `E:/DemoPresentations/style.css`:
 
 ```css
-/* Professional accent colors */
+/* ===== THEME VARIABLES ===== */
 :root {
-  --slidev-theme-primary: #3b82f6;
+  --slidev-theme-primary: #2563eb;
+  --slidev-slide-container-background: #0f172a;
+  --slidev-transition-duration: 0.4s;
+
+  /* Code blocks */
+  --slidev-code-background: #1e293b;
+  --slidev-code-foreground: #e2e8f0;
+  --slidev-code-font-size: 14px;
+  --slidev-code-line-height: 22px;
+  --slidev-code-radius: 8px;
+  --slidev-code-padding: 16px;
+  --slidev-code-margin: 8px 0;
 }
 
-/* Subtle gradient on slide titles */
+/* ===== DARK SLIDE BACKGROUND ===== */
+.slidev-layout {
+  background: linear-gradient(180deg, #0f172a 0%, #131c2e 100%);
+  color: #e2e8f0;
+}
+
+/* ===== TYPOGRAPHY ===== */
 .slidev-layout h1 {
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  color: #60a5fa;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.slidev-layout h2 {
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.slidev-layout h3 {
+  color: #bfdbfe;
+}
+
+.slidev-layout li strong {
+  color: #60a5fa;
+}
+
+.slidev-layout li {
+  line-height: 2;
+}
+
+/* ===== COVER / SECTION SLIDES ===== */
+.slidev-layout.cover,
+.slidev-layout.section {
+  background: linear-gradient(135deg, #0f172a 0%, #1a1a3e 50%, #1e293b 100%);
+}
+
+.slidev-layout.cover h1 {
+  font-size: 3.5rem;
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Better table styling */
-table {
-  font-size: 0.85em;
-}
-table th {
-  background: rgba(59, 130, 246, 0.15);
-  font-weight: 600;
-}
-table td, table th {
-  padding: 0.4em 0.6em;
-  border-color: rgba(255, 255, 255, 0.1);
+/* ===== CODE BLOCKS ===== */
+.slidev-code {
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-/* Mermaid diagram sizing fixes */
+/* ===== TABLES ===== */
+.slidev-layout table {
+  font-size: 0.85em;
+}
+
+.slidev-layout th {
+  background: rgba(37, 99, 235, 0.12);
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.slidev-layout td, .slidev-layout th {
+  padding: 0.4em 0.6em;
+  border-color: rgba(148, 163, 184, 0.12);
+}
+
+/* ===== LINKS ===== */
+.slidev-layout a {
+  color: #60a5fa;
+  text-decoration: none;
+  border-bottom: 1px dashed #60a5fa;
+}
+
+/* ===== BLOCKQUOTES ===== */
+.slidev-layout blockquote {
+  background: rgba(37, 99, 235, 0.08);
+  border-left-color: #2563eb;
+}
+
+/* ===== MERMAID SIZING ===== */
 .mermaid {
   max-height: 75vh;
 }
 
-/* Code block polish */
-.slidev-code-wrapper {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-/* v-clicks items get subtle left border on reveal */
-.slidev-vclick-target {
-  transition: all 0.3s ease;
-}
-
-/* Callout box style */
+/* ===== CALLOUT BOXES ===== */
 .callout {
   background: rgba(59, 130, 246, 0.1);
   border-left: 3px solid #3b82f6;
@@ -164,21 +230,33 @@ table td, table th {
 }
 ```
 
-- [ ] **Step 4: Build and verify the theme switch**
+- [ ] **Step 3: Create the global top accent bar**
+
+Create `E:/DemoPresentations/global-top.vue`:
+
+```vue
+<template>
+  <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-violet-600" />
+</template>
+```
+
+This renders a persistent blue-to-violet gradient line at the top of every slide.
+
+- [ ] **Step 4: Build and verify the styling**
 
 ```bash
 cd E:/DemoPresentations
 npx slidev build
 ```
 
-Expected: Build succeeds. Slides now use serif typography with dark background and gradient headings.
+Expected: Build succeeds. Slides have dark background, blue headings, gradient accent bar, Inter font, polished code blocks.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd E:/DemoPresentations
-git add package.json package-lock.json slides.md style.css
-git commit -m "feat: switch to seriph theme with custom dark styling"
+git add slides.md style.css global-top.vue
+git commit -m "feat: add professional dark styling with Inter font and gradient accents"
 ```
 
 ---
@@ -655,12 +733,14 @@ git commit -m "chore: final verification pass on slide deck improvements"
 
 ## Research Notes (for reference during implementation)
 
-### Theme Choice: `@slidev/theme-seriph`
-- Official Slidev theme by the framework creator (Anthony Fu)
-- Serif typography for polished keynote feel
-- Built-in dark/light support
-- Guaranteed compatibility with Slidev v52
-- Selected over `slidev-theme-geist` (Vercel-inspired) because seriph is official and more stable
+### Theme Choice: Stay on `default` with custom CSS
+- Staying on the default theme gives full control without fighting theme opinions
+- Custom `style.css` provides: dark gradient backgrounds, blue accent headings, polished tables/code, callout boxes
+- Inter + JetBrains Mono fonts (via Google Fonts) for clean engineering aesthetic
+- `global-top.vue` adds a persistent gradient accent bar across all slides
+- Mermaid dark theme configured via frontmatter `themeVariables`
+- Considered `seriph` (official, serif typography) and `geist` (Vercel-inspired) but custom CSS on default gives the best balance of control and polish
+- Code font bumped to 14px for screenshare readability (default 12px is too small)
 
 ### Alternatives Comparison Accuracy Notes
 - **OpenClaw star count:** Speaker notes previously said "250k stars" — could not verify. Use "massive community" instead of specific numbers.
