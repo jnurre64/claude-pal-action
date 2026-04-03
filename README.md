@@ -125,6 +125,8 @@ The system adapts to any project through:
 |-----|-------------|
 | [Getting Started](docs/getting-started.md) | Full walkthrough from zero to working agent |
 | [Architecture](docs/architecture.md) | How the dispatch system works |
+| [Design Philosophy](docs/design-philosophy.md) | Design principles, target use cases, and workflow guidance |
+| [FAQ](docs/faq.md) | Common questions about safety, privacy, costs, and usage |
 | [Configuration](docs/configuration.md) | All settings and options |
 | [Customization](docs/customization.md) | Prompts, tools, and project-specific setup |
 | [Operations](docs/operations.md) | Logs, monitoring, retrying failed issues |
