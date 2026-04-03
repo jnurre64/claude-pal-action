@@ -105,6 +105,10 @@ Issue titles, bodies, and comments are passed to Claude via environment variable
 
 If `AGENT_TEST_COMMAND` is configured, the dispatch script runs the test suite after implementation and before creating a PR. If tests fail, the agent sets `agent:failed` and posts the test output -- no PR is created with broken code.
 
+### Alignment with Industry Standards
+
+The safety mechanisms above align with emerging industry frameworks for autonomous AI agents, including the [OWASP Top 10 for Agentic Applications](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) (principle of least agency — only grant agents the minimum autonomy required for safe, bounded tasks) and the [NVIDIA AI Red Team's recommended controls](https://developer.nvidia.com/blog/securing-ai-agents-best-practices-from-nvidias-ai-red-team/) for autonomous agents (network egress restrictions, file write restrictions, approval architecture).
+
 ## Security Checklist
 
 Review this checklist periodically and after any changes to the agent system.
