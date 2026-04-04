@@ -20,6 +20,8 @@ A reusable dispatch system for running [Claude Code](https://claude.com/claude-c
 - **Fresh context every session** — no long-running conversations that drift. Each agent run loads just what it needs from the issue, codebase, and project context.
 - **Deeply configurable** — override prompts per phase, tune tool allowlists, set test gates, add project-specific tools. Designed as a starting point you shape to your workflow.
 
+This system supplements interactive Claude Code sessions — it doesn't replace them. Use interactive mode to brainstorm, investigate, and draft issues. Hand off well-defined work to an agent by labeling the issue, then continue your next interactive session while the agent works in the background. When the agent opens a PR, reference its changes in your interactive sessions to build on its work.
+
 ## How It Works
 
 When you label a GitHub issue with `agent`, the system:
