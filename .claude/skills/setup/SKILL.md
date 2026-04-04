@@ -157,21 +157,136 @@ Summarize everything that was set up:
 - Secrets that need to be set (if not done in Step 7)
 - For standalone: list of files copied to `.agent-dispatch/`
 
-## Step 9: Next Steps
+## Step 9: Self-Hosted Runner Setup
 
-### Reference mode
-1. **Commit and push** the workflow files to their target repo
-2. **Set up a self-hosted runner** (if not already done)
-3. **Ensure the runner has `claude` CLI installed** and the ANTHROPIC_API_KEY environment variable set
-4. **Clone this repo** on the runner: `git clone https://github.com/jnurre64/claude-agent-dispatch.git ~/agent-infra`
-5. **Copy config.env** to the runner at `~/agent-infra/config.env`
-6. **Test with a dry run**: Create a test issue, add the `agent` label, and watch the agent triage it
+Ask the user if they already have a self-hosted runner configured for this repo. If yes, skip to Step 9e (verify prerequisites). If no, walk them through the full setup.
 
-### Standalone mode
-1. **Review and customize** `.agent-dispatch/prompts/` for your project's conventions
-2. **Review** `.agent-dispatch/config.env` — ensure settings are correct
-3. **Commit and push** all files (`.agent-dispatch/` and `.github/workflows/`) to the target repo
-4. **Set up a self-hosted runner** with `claude` CLI installed
-5. **Test with a dry run**: Create a test issue, add the `agent` label, and watch the agent triage it
+### Step 9a: Determine runner scope
 
-Note for standalone users: You own all the files now. Modify scripts, prompts, and workflows as needed for your project. There is no upstream dependency.
+Ask: Is the target repo under a personal account or an organization?
+
+- **Organization repo:** Recommend org-level runner registration. One runner serves all org repos. Token source: `https://github.com/organizations/<org>/settings/actions/runners/new`
+- **Personal account repo:** Only repo-level registration is available (GitHub does not support user-level runners). Token source: `https://github.com/<owner>/<repo>/settings/actions/runners/new`
+
+**If the repo is public**, display this warning:
+
+> ⚠️ **Security risk:** GitHub warns against using self-hosted runners on public repositories. Anyone who forks the repo and opens a PR can potentially execute code on your runner, accessing environment variables, API keys, and the filesystem. Consider making the repo private, or review the hardening steps in [docs/security.md](docs/security.md).
+
+### Step 9b: Download and extract the runner
+
+Direct the user to the GitHub UI page for their scope (org or repo). The page shows the correct download URL and checksum for their platform. Tell them to follow the download and extraction steps shown there.
+
+Suggest a directory naming convention:
+- `~/actions-runner-<repo-name>/` for single-repo setups
+- `~/actions-runner-<org>-agent/` for org-level setups
+
+Check if the user already has runner directories on the machine:
+```bash
+ls -d ~/actions-runner-* 2>/dev/null
+```
+If found, offer to reuse the binary — they only need a new directory and registration.
+
+### Step 9c: Register the runner
+
+The user must get a registration token from the GitHub UI (it expires in 1 hour). Tell them to navigate to the URL from Step 9a, copy the token, and then run:
+
+```bash
+./config.sh \
+  --url https://github.com/<owner-or-org> \
+  --token <TOKEN_FROM_GITHUB_UI> \
+  --name <descriptive-name> \
+  --labels self-hosted,agent \
+  --work _work
+```
+
+The `--labels self-hosted,agent` is required — the dispatch workflows use `runs-on: [self-hosted, agent]`.
+
+Since this requires a token the user must paste, tell them to run the command themselves. In Claude Code, they can use `! ./config.sh ...` to run it in the session.
+
+### Step 9d: Configure credentials
+
+**ANTHROPIC_API_KEY** — Add to the runner's `.env` file (in the runner installation directory). This is the mechanism the runner uses to inject environment variables into workflow jobs. Systemd services do NOT source shell profiles (`~/.bashrc`), so `export` in `.bashrc` will not work.
+
+```bash
+echo 'ANTHROPIC_API_KEY=sk-ant-...' >> .env
+chmod 600 .env
+```
+
+Tell the user to paste their actual key. Remind them:
+- The `.env` file must be `chmod 600` (only the runner user can read it)
+- Every workflow job on this runner can access the key
+- Rotate the key every 90 days
+
+**Node/Claude path** — If using nvm, the `claude` binary won't be in PATH for systemd services. Add the path to `.env`:
+
+```bash
+echo "PATH=$HOME/.nvm/versions/node/$(node -v)/bin:$PATH" >> .env
+```
+
+**Git identity** — Configure git for the bot account:
+
+```bash
+git config --global user.name "<bot-username>"
+git config --global user.email "<bot-username>@users.noreply.github.com"
+```
+
+### Step 9e: Verify prerequisites
+
+Check that the required tools are available:
+
+```bash
+claude --version && gh --version && git --version && jq --version && echo "All tools found"
+```
+
+If any are missing, help the user install them. See [docs/runners.md](docs/runners.md#prerequisites) for the full list.
+
+### Step 9f: Install systemd service
+
+```bash
+sudo ./svc.sh install $(whoami)
+sudo ./svc.sh start
+sudo ./svc.sh status
+```
+
+The service name follows the pattern `actions.runner.<org-or-owner>.<runner-name>.service`.
+
+### Step 9g: Verify in GitHub UI
+
+Direct the user to check that the runner appears in the GitHub UI:
+- **Org:** `https://github.com/organizations/<org>/settings/actions/runners`
+- **Repo:** `https://github.com/<owner>/<repo>/settings/actions/runners`
+
+It should show as **Idle** with the labels `self-hosted` and `agent`.
+
+### Step 9h: Reference mode only — clone upstream and copy config
+
+For reference mode, the dispatch scripts run from a clone of this repo on the runner:
+
+```bash
+git clone https://github.com/jnurre64/claude-agent-dispatch.git ~/agent-infra
+cp <path-to-config.env> ~/agent-infra/config.env
+```
+
+## Step 10: Test and Finish
+
+### Commit and push
+
+- **Reference mode:** Commit and push the workflow files to the target repo
+- **Standalone mode:** Commit and push `.agent-dispatch/` and `.github/workflows/` to the target repo
+
+### Dry run
+
+Create a test issue on the target repo and add the `agent` label. Watch the agent triage it, write a plan, and wait for approval.
+
+### Summary
+
+Summarize everything that was set up:
+- Setup mode (reference or standalone)
+- Config file locations
+- Labels created
+- Workflows generated
+- Secrets configured
+- Runner registered and running
+- For standalone: list of files in `.agent-dispatch/`
+
+If any step was skipped, list it with instructions for completing it later. Reference [docs/runners.md](docs/runners.md) for the full runner documentation.

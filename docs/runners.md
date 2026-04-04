@@ -9,6 +9,18 @@ Claude Agent Dispatch requires self-hosted GitHub Actions runners because:
 - **Project-specific tooling**: Your project may require build tools, test frameworks, or runtime environments that are impractical to install on every run.
 - **Performance**: Self-hosted runners avoid the startup overhead of provisioning a fresh container for each job.
 
+## Security Warning: Public Repositories
+
+> **Self-hosted runners on public repositories are a security risk.** GitHub explicitly warns against this. Anyone who forks a public repo can open a PR that potentially executes code on your runner, gaining access to environment variables (including API keys), the filesystem, and network resources.
+
+If your target repo is public:
+- **Strongly consider making it private** before adding self-hosted runners
+- If it must be public, require approval for all fork PR workflows (Settings > Actions > General > Fork pull request workflows)
+- See [docs/security.md](security.md) for the full threat model and hardening checklist
+- Claude Agent Dispatch triggers on `issues` and `issue_comment` events (not fork PRs), which limits exposure, but secrets on the runner are still at risk if any workflow runs fork PR code
+
+For most users, **org-level runners + private repos** is the simplest and most secure pattern.
+
 ## Prerequisites
 
 The runner machine needs the following installed:
@@ -33,41 +45,47 @@ git --version
 jq --version
 ```
 
-The runner user must have `ANTHROPIC_API_KEY` (or equivalent) set in their environment for Claude Code to authenticate.
-
 ## Installing a GitHub Actions Runner
 
 Full instructions are in the [GitHub docs](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/adding-self-hosted-runners).
 
-Summary for Linux:
+### Runner registration scope
+
+| Scope | Best for | Token source |
+|-------|----------|-------------|
+| **Repository** | Single-repo setups, personal accounts | Repo Settings > Actions > Runners > New self-hosted runner |
+| **Organization** | Multi-repo setups, teams | Org Settings > Actions > Runners > New self-hosted runner |
+
+GitHub does not support user-level runners for personal accounts. If your repo is under a personal account (not an org), you must use repo-level registration.
+
+### Installation steps
+
+Navigate to the runner setup page in GitHub to get the correct download URL and registration token for your context:
+- **Org:** `https://github.com/organizations/<your-org>/settings/actions/runners/new`
+- **Repo:** `https://github.com/<owner>/<repo>/settings/actions/runners/new`
+
+The page shows the exact download URL, checksum, and token for your platform. Follow those instructions, then register with the appropriate labels:
 
 ```bash
 # Create a directory for the runner
-mkdir -p ~/actions-runner-agent && cd ~/actions-runner-agent
+mkdir -p ~/actions-runner-<repo-name> && cd ~/actions-runner-<repo-name>
 
-# Download the latest runner (check GitHub for current version)
-curl -o actions-runner-linux-x64.tar.gz -L \
-  https://github.com/actions/runner/releases/latest/download/actions-runner-linux-x64-2.322.0.tar.gz
-tar xzf actions-runner-linux-x64.tar.gz
+# Download and extract (use the URL from the GitHub UI — it has the current version)
+# curl -o actions-runner-linux-x64.tar.gz -L <URL_FROM_GITHUB_UI>
+# tar xzf actions-runner-linux-x64.tar.gz
 
-# Get a registration token from your org or repo settings:
-#   Org:  Settings -> Actions -> Runners -> New self-hosted runner
-#   Repo: Settings -> Actions -> Runners -> New self-hosted runner
-
-# Configure the runner
+# Configure the runner (token expires in 1 hour — generate it immediately before this)
 ./config.sh \
-  --url https://github.com/your-org \
-  --token YOUR_REGISTRATION_TOKEN \
-  --name agent-runner-1 \
-  --labels agent \
+  --url https://github.com/<owner-or-org> \
+  --token <TOKEN_FROM_GITHUB_UI> \
+  --name <descriptive-runner-name> \
+  --labels self-hosted,agent \
   --work _work
 
 # Install and start as a systemd service
 sudo ./svc.sh install $(whoami)
 sudo ./svc.sh start
 ```
-
-Registration tokens expire in 1 hour. Generate them immediately before configuring.
 
 ## Installing Claude Code on the Runner
 
@@ -83,18 +101,65 @@ npm install -g @anthropic-ai/claude-code
 claude --version
 ```
 
-Make sure the runner's shell profile (`.bashrc` or `.profile`) sources nvm so that `claude` is in PATH when GitHub Actions runs the dispatch script. The dispatch script includes nvm sourcing as a fallback:
+The dispatch script includes nvm sourcing as a fallback for systemd services (which do not source shell profiles):
 
 ```bash
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 ```
 
-Set the API key in the runner user's environment:
+Additionally, add the nvm/node path to the runner's `.env` file so systemd can find the `claude` binary:
 
 ```bash
-# Add to ~/.bashrc or ~/.profile
-export ANTHROPIC_API_KEY="sk-ant-..."
+# Add to <runner-dir>/.env (create if it doesn't exist)
+echo "PATH=$HOME/.nvm/versions/node/$(node -v)/bin:$PATH" >> .env
+```
+
+## Credentials and API Keys
+
+### ANTHROPIC_API_KEY
+
+The Claude Code CLI requires `ANTHROPIC_API_KEY` in its environment. Add it to the runner's `.env` file:
+
+```bash
+# In the runner installation directory (e.g., ~/actions-runner-<repo-name>/)
+echo 'ANTHROPIC_API_KEY=sk-ant-...' >> .env
+chmod 600 .env
+```
+
+The runner reads `.env` on startup and injects these variables into every workflow job. **Do not** add the key to `~/.bashrc` — systemd services do not source shell profiles.
+
+**Security notes:**
+- The `.env` file must be `chmod 600` (readable only by the runner user)
+- Every workflow job on this runner can access the key via the environment
+- If you want per-workflow injection instead, store the key as a [GitHub Actions secret](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) and add `ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}` to the `env:` block in your workflow files
+- Rotate the key every 90 days, or immediately if you suspect exposure
+- Revoke the old key only after verifying the new key works
+
+### GitHub bot PAT
+
+The bot's fine-grained PAT is injected via GitHub Actions secrets (`secrets.AGENT_PAT`) in the workflow files. It does not need to be stored on the runner's filesystem for normal operation.
+
+If you need `gh` CLI access on the runner for manual operations:
+
+```bash
+# Authenticate gh CLI as the bot
+echo "<PAT>" | gh auth login --with-token
+
+# Secure the credential files
+chmod 600 ~/.config/gh/hosts.yml
+chmod 700 ~/.config/gh/
+```
+
+**PAT scope:** Use a fine-grained PAT with minimum permissions: Contents (read/write), Issues (read/write), Pull requests (read/write), Metadata (read). Set expiration to 90 days. See [docs/bot-account.md](bot-account.md) for full guidance.
+
+### Git configuration for the bot
+
+Configure git to use the bot identity for commits:
+
+```bash
+git config --global user.name "<bot-username>"
+git config --global user.email "<bot-username>@users.noreply.github.com"
 ```
 
 ## Runner Labels
@@ -132,7 +197,7 @@ The easiest way is via the GitHub UI: **Settings -> Actions -> Runners** -> clic
 Alternatively, remove and reconfigure:
 
 ```bash
-cd ~/actions-runner-agent
+cd ~/actions-runner-<repo-name>
 ./config.sh remove
 # Get a fresh registration token
 ./config.sh --url https://github.com/your-org --token NEW_TOKEN \
@@ -289,4 +354,5 @@ For full details on runner service management, see the [GitHub documentation on 
 - **Same OS user**: All runners on a machine typically share a single OS user. This is fine for single-developer or small-team setups. For stronger isolation between runners, create separate OS users.
 - **Shared filesystem**: Runners share the home directory. The dispatch script, Claude Code, `gh`, and `git` are installed once. Only the per-runner repo clones and worktrees are isolated.
 - **Runner auto-updates**: GitHub pushes runner updates automatically. You do not need to manage runner versions.
+- **Credential file permissions**: Ensure `chmod 600` on the runner `.env` file, `~/.config/gh/hosts.yml`, and `~/.git-credentials`. Ensure `chmod 700` on `~/.config/gh/`.
 - **Removing a runner**: Stop the service, uninstall it, remove the runner from GitHub UI (or `./config.sh remove`), then delete the directory and its isolation directories under `~/repos/<RUNNER_NAME>` and `~/.claude/worktrees/<RUNNER_NAME>`.
