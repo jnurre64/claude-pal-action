@@ -5,6 +5,15 @@
 
 A reusable dispatch system for running [Claude Code](https://claude.com/claude-code) agents on GitHub issues — autonomously triaging, planning, implementing, and addressing PR review feedback, all orchestrated through GitHub Actions and a label-driven state machine.
 
+## Key Benefits
+
+- **No additional subscriptions** — runs on Claude Code CLI and GitHub Actions. No third-party platform subscriptions, no per-token API billing layers, no external SaaS dependencies to manage.
+- **Low complexity, fast setup** — a small dependency chain (shell scripts, GitHub Actions, Claude Code CLI). Configure and deploy in about 5 minutes with the `/setup` skill.
+- **Two-phase human approval** — the agent writes a plan and waits for your approval before writing any code. You stay in control of what gets built.
+- **Async by default** — label an issue before bed, wake up to a plan awaiting approval. Brainstorm a new issue while the agent works on an existing one.
+- **Fresh context every session** — no long-running conversations that drift. Each agent run loads just what it needs from the issue, codebase, and project context.
+- **Deeply configurable** — override prompts per phase, tune tool allowlists, set test gates, add project-specific tools. Designed as a starting point you shape to your workflow.
+
 ## How It Works
 
 When you label a GitHub issue with `agent`, the system:
@@ -118,6 +127,8 @@ The system adapts to any project through:
 |-----|-------------|
 | [Getting Started](docs/getting-started.md) | Full walkthrough from zero to working agent |
 | [Architecture](docs/architecture.md) | How the dispatch system works |
+| [Design Philosophy](docs/design-philosophy.md) | Design principles, target use cases, and workflow guidance |
+| [FAQ](docs/faq.md) | Common questions about safety, privacy, costs, and usage |
 | [Configuration](docs/configuration.md) | All settings and options |
 | [Customization](docs/customization.md) | Prompts, tools, and project-specific setup |
 | [Operations](docs/operations.md) | Logs, monitoring, retrying failed issues |
@@ -127,21 +138,6 @@ The system adapts to any project through:
 | [Testing](docs/testing.md) | BATS test suite — 52 tests, regression coverage, writing new tests |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
 | [Versioning](docs/versioning.md) | SemVer policy, release process, changelog conventions |
-
-## How This Differs from claude-code-action
-
-Anthropic's official [`claude-code-action`](https://github.com/anthropics/claude-code-action) is a GitHub Action for lightweight triggers — responding to `@claude` mentions or simple prompts on PRs. It's great for quick interactions.
-
-**claude-agent-dispatch** is a full autonomous agent lifecycle system:
-- Label-driven state machine with human checkpoints
-- Two-phase plan/implement workflow (plan → review → approve → implement)
-- Worktree isolation for concurrent issue handling
-- Debug data pipeline (pre-fetches gists and attachments for Claude to analyze)
-- Circuit breakers, tool restrictions, and safety mechanisms
-- Configurable prompts, tools, and test gates per project
-- Scheduled cleanup of stale branches, gists, and workflow runs
-
-Use `claude-code-action` for quick PR interactions. Use this system for autonomous issue-to-PR workflows.
 
 ## Repository Structure
 
