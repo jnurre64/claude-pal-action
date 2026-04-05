@@ -249,3 +249,24 @@ _source_common() {
     assert_output --partial "Project Memory"
     assert_output --partial "Shared Project Memory"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# validate prompt tests
+# ═══════════════════════════════════════════════════════════════
+
+@test "load_prompt: loads default validate prompt" {
+    _source_common
+    run load_prompt "validate" ""
+    assert_success
+    assert_output --partial "validating"
+}
+
+@test "load_prompt: loads custom validate prompt from absolute path" {
+    _source_common
+    local prompt_file="${TEST_TEMP_DIR}/custom-validate.md"
+    echo "Custom validate prompt" > "$prompt_file"
+
+    run load_prompt "validate" "$prompt_file"
+    assert_success
+    assert_output "Custom validate prompt"
+}
