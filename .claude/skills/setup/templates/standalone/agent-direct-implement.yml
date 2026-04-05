@@ -1,0 +1,35 @@
+name: "Claude Agent: Direct Implement"
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: claude-agent-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  direct-implement:
+    if: >-
+      github.event.label.name == 'agent:implement' &&
+      github.actor != '{{BOT_USER}}'
+    runs-on: [self-hosted, agent]
+    timeout-minutes: 125
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run agent dispatch
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT }}
+          GITHUB_TOKEN: ${{ secrets.AGENT_PAT }}
+          AGENT_CONFIG: ${{ github.workspace }}/.agent-dispatch/config.env
+        run: |
+          .agent-dispatch/scripts/agent-dispatch.sh \
+            direct_implement \
+            "${{ github.repository }}" \
+            "${{ github.event.issue.number }}"
