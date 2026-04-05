@@ -1,0 +1,62 @@
+name: "Agent Dispatch: Direct Implement"
+
+on:
+  workflow_call:
+    inputs:
+      bot_user:
+        description: 'Bot account username (for self-trigger prevention)'
+        required: true
+        type: string
+      issue_number:
+        description: 'Issue number override (for repository_dispatch triggers)'
+        required: false
+        type: string
+        default: ''
+      dispatch_script:
+        description: 'Path to agent-dispatch.sh on the runner'
+        required: false
+        type: string
+        default: '~/agent-infra/scripts/agent-dispatch.sh'
+      config_path:
+        description: 'Path to config.env on the runner'
+        required: false
+        type: string
+        default: '~/agent-infra/config.env'
+      timeout_minutes:
+        description: 'Job timeout in minutes'
+        required: false
+        type: number
+        default: 125
+      runner_labels:
+        description: 'JSON array of runner labels'
+        required: false
+        type: string
+        default: '["self-hosted", "agent"]'
+    secrets:
+      agent_pat:
+        description: 'Fine-grained PAT for the bot account'
+        required: true
+
+concurrency:
+  group: claude-agent-${{ inputs.issue_number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  direct-implement:
+    runs-on: ${{ fromJSON(inputs.runner_labels) }}
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Run agent dispatch (direct implement)
+        env:
+          GH_TOKEN: ${{ secrets.agent_pat }}
+          GITHUB_TOKEN: ${{ secrets.agent_pat }}
+          AGENT_CONFIG: ${{ inputs.config_path }}
+        run: |
+          ${{ inputs.dispatch_script }} \
+            direct_implement \
+            "${{ github.repository }}" \
+            "${{ inputs.issue_number || github.event.issue.number }}"
