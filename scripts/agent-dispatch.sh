@@ -360,19 +360,24 @@ handle_implement() {
     notify "implement_started" "$issue_title" "https://github.com/${REPO}/issues/${NUMBER}" "Implementation starting"
     issue_body=$(echo "$issue_json" | jq -r '.body')
 
-    # Find the approved plan from issue comments
+    # Find the approved plan — use pre-loaded content (from direct implement) or extract from comments
     local plan_content
-    plan_content=$(echo "$issue_json" | jq -r '
-        [.comments[] | select(.body | test("<!-- agent-plan -->"))] | last | .body // ""
-    ' 2>/dev/null)
+    if [ -n "${AGENT_PLAN_CONTENT:-}" ]; then
+        plan_content="$AGENT_PLAN_CONTENT"
+        log "Using pre-loaded plan content (direct implement)"
+    else
+        plan_content=$(echo "$issue_json" | jq -r '
+            [.comments[] | select(.body | test("<!-- agent-plan -->"))] | last | .body // ""
+        ' 2>/dev/null)
 
-    if [ -z "$plan_content" ]; then
-        log "Could not find plan comment on issue. Marking as failed."
-        set_label "agent:failed"
-        gh issue comment "$NUMBER" --repo "$REPO" \
-            --body "Agent could not find the approved plan comment. Expected a comment with \`<!-- agent-plan -->\` marker. Please re-run the plan phase by labeling with \`agent\`." 2>/dev/null || true
-        cleanup_worktree
-        return
+        if [ -z "$plan_content" ]; then
+            log "Could not find plan comment on issue. Marking as failed."
+            set_label "agent:failed"
+            gh issue comment "$NUMBER" --repo "$REPO" \
+                --body "Agent could not find the approved plan comment. Expected a comment with \`<!-- agent-plan -->\` marker. Please re-run the plan phase by labeling with \`agent\`." 2>/dev/null || true
+            cleanup_worktree
+            return
+        fi
     fi
 
     local comments

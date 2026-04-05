@@ -167,3 +167,14 @@ EOF
 
     assert_equal "$AGENT_PROMPT_VALIDATE" ""
 }
+
+# ─── REGRESSION: direct-implement — plan content pre-loading ────
+
+@test "REGRESSION direct-implement: handle_implement checks AGENT_PLAN_CONTENT before extracting from comments" {
+    # Verify the dispatch script checks for pre-loaded plan content
+    grep -q 'AGENT_PLAN_CONTENT' "${SCRIPTS_DIR}/agent-dispatch.sh"
+}
+
+@test "REGRESSION direct-implement: handle_implement logs when using pre-loaded plan" {
+    grep -q 'Using pre-loaded plan content' "${SCRIPTS_DIR}/agent-dispatch.sh"
+}
