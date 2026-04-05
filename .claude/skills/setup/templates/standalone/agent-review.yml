@@ -5,7 +5,7 @@ on:
     types: [submitted]
 
 concurrency:
-  group: claude-agent-${{ github.event.pull_request.number }}
+  group: claude-agent-review-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:

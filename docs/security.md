@@ -87,15 +87,15 @@ Two layers of timeout protection:
 
 ### Concurrency Groups
 
-Each reusable workflow uses a concurrency group keyed by issue or PR number:
+Each reusable workflow uses a concurrency group keyed by workflow type and issue or PR number:
 
 ```yaml
 concurrency:
-  group: claude-agent-${{ github.event.issue.number }}
+  group: claude-agent-triage-${{ github.event.issue.number }}
   cancel-in-progress: false
 ```
 
-`cancel-in-progress: false` means concurrent jobs for the same issue are queued, not cancelled. This prevents race conditions where two agent runs modify the same branch simultaneously.
+Groups are workflow-specific (e.g., `claude-agent-triage-96`, `claude-agent-implement-96`) so that label changes during a run don't cause other workflows to compete in the same group. `cancel-in-progress: false` means concurrent jobs for the same workflow and issue are queued, not cancelled.
 
 ### Environment Variable Injection
 

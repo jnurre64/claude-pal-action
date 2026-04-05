@@ -256,17 +256,18 @@ diff -r prompts/ /path/to/claude-agent-dispatch/prompts/
 
 ## Concurrency
 
-Each reusable workflow uses a concurrency group keyed by issue or PR number:
+Each reusable workflow uses a concurrency group keyed by workflow type and issue or PR number:
 
 ```yaml
 concurrency:
-  group: claude-agent-${{ github.event.issue.number }}
+  group: claude-agent-triage-${{ github.event.issue.number }}
   cancel-in-progress: false
 ```
 
-This means:
-- Only one agent job runs per issue/PR at a time
-- Additional triggers for the same issue are **queued**, not cancelled
+Groups are workflow-specific (e.g., `claude-agent-triage-96`, `claude-agent-implement-96`) so that label changes during a run don't cause other workflows to compete in the same group. This means:
+- Only one job per workflow type runs per issue/PR at a time
+- Additional triggers for the same workflow and issue are **queued**, not cancelled
 - Different issues can run in parallel on different runners
+- Different workflow types for the same issue don't interfere with each other
 
 If a job seems stuck, check the GitHub Actions UI for queued runs. You can cancel queued runs manually if needed.

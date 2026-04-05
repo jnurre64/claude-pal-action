@@ -5,7 +5,7 @@ on:
     types: [created]
 
 concurrency:
-  group: claude-agent-${{ github.event.issue.number }}
+  group: claude-agent-reply-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
