@@ -420,6 +420,106 @@ handle_implement() {
 }
 
 # ═══════════════════════════════════════════════════════════════
+# EVENT: Issue labeled "agent:implement" → Validate + Implement
+# ═══════════════════════════════════════════════════════════════
+handle_direct_implement() {
+    # Config gate
+    if [ "${AGENT_ALLOW_DIRECT_IMPLEMENT:-true}" != "true" ]; then
+        log "Direct implement is disabled (AGENT_ALLOW_DIRECT_IMPLEMENT=${AGENT_ALLOW_DIRECT_IMPLEMENT})"
+        set_label "agent:failed"
+        gh issue comment "$NUMBER" --repo "$REPO" \
+            --body "The \`agent:implement\` label is not enabled for this repository. Set \`AGENT_ALLOW_DIRECT_IMPLEMENT=true\` in config to enable it, or use the standard \`agent\` label for triage." 2>/dev/null || true
+        return
+    fi
+
+    log "Direct implement: validating pre-written plan..."
+    detect_label_tools
+    set_label "agent:validating"
+    check_circuit_breaker
+    ensure_repo
+    setup_worktree
+
+    # Fetch issue details
+    local issue_json
+    issue_json=$(gh issue view "$NUMBER" --repo "$REPO" --json title,body,comments)
+    local issue_title issue_body comments
+    issue_title=$(echo "$issue_json" | jq -r '.title')
+    issue_body=$(echo "$issue_json" | jq -r '.body')
+    comments=$(echo "$issue_json" | jq -r '.comments[] | "[\(.author.login)] \(.body)"' | tail -20)
+
+    # Extract debug data from issue comments and body
+    local issue_comments_json
+    issue_comments_json=$(echo "$issue_json" | jq '.comments' 2>/dev/null || echo "[]")
+    local data_dir="${WORKTREE_DIR}/.agent-data"
+    mkdir -p "$data_dir"
+    log "Extracting debug data from issue comments and body..."
+    set +e
+    extract_debug_data "$issue_comments_json" "$data_dir" "$issue_body"
+    set -e
+
+    export AGENT_ISSUE_TITLE="$issue_title"
+    export AGENT_ISSUE_BODY="$issue_body"
+    export AGENT_COMMENTS="$comments"
+    export AGENT_DATA_COMMENT_FILE="${EXTRACTED_DATA_COMMENT_FILE:-}"
+    export AGENT_GIST_FILES="${EXTRACTED_GIST_FILES:-}"
+    export AGENT_DATA_ERRORS="${EXTRACTED_DATA_ERRORS:-}"
+
+    local prompt
+    prompt=$(load_prompt "validate" "$AGENT_PROMPT_VALIDATE")
+
+    local result
+    result=$(run_claude "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE")
+
+    local claude_output
+    claude_output=$(parse_claude_output "$result")
+    log "Validation result: $claude_output"
+
+    # Parse the action
+    local validate_json action
+    set +e
+    validate_json=$(echo "$claude_output" | grep -oP '\{[^{}]*"action"[^{}]*\}' | tail -1)
+    if [ -z "$validate_json" ]; then
+        validate_json="$claude_output"
+    fi
+    action=$(echo "$validate_json" | jq -r '.action // empty' 2>/dev/null || echo "")
+    set -e
+
+    if [ "$action" = "valid" ]; then
+        log "Plan validated. Proceeding to implementation..."
+        notify "validation_passed" "$issue_title" "https://github.com/${REPO}/issues/${NUMBER}" "Plan validated, starting implementation"
+
+        # Pre-load plan content from issue body and transition to implementation
+        export AGENT_PLAN_CONTENT="$issue_body"
+        handle_implement
+    elif [ "$action" = "issues_found" ]; then
+        local issues
+        issues=$(echo "$validate_json" | jq -r '.issues[]' 2>/dev/null | sed 's/^/- /')
+
+        gh issue comment "$NUMBER" --repo "$REPO" --body "<!-- agent-direct-implement -->
+## Plan Validation Issues
+
+I found some issues while validating the implementation plan against the current codebase:
+
+${issues}
+
+Please update the issue to address these and re-label with \`agent:implement\` to retry." 2>/dev/null || true
+
+        set_label "agent:needs-info"
+        notify "validation_issues" "$issue_title" "https://github.com/${REPO}/issues/${NUMBER}" "$issues"
+        log "Validation found issues. Waiting for human to address."
+        cleanup_worktree
+    else
+        log "Could not parse validation response. Marking as failed."
+        log "Raw output: $claude_output"
+        set_label "agent:failed"
+        notify "agent_failed" "$issue_title" "https://github.com/${REPO}/issues/${NUMBER}" "Could not parse validation response"
+        gh issue comment "$NUMBER" --repo "$REPO" \
+            --body "Agent could not validate the plan. Please review and re-label with \`agent:implement\` to retry." 2>/dev/null || true
+        cleanup_worktree
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════
 # EVENT: PR review with changes requested → Address feedback
 # ═══════════════════════════════════════════════════════════════
 handle_pr_review() {
@@ -578,6 +678,9 @@ case "$EVENT_TYPE" in
         ;;
     pr_review)
         handle_pr_review
+        ;;
+    direct_implement)
+        handle_direct_implement
         ;;
     *)
         log "Unknown event type: $EVENT_TYPE"

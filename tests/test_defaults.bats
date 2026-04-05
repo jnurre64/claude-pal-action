@@ -178,3 +178,50 @@ EOF
 @test "REGRESSION direct-implement: handle_implement logs when using pre-loaded plan" {
     grep -q 'Using pre-loaded plan content' "${SCRIPTS_DIR}/agent-dispatch.sh"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# handle_direct_implement handler
+# ═══════════════════════════════════════════════════════════════
+
+@test "dispatch script: has handle_direct_implement function" {
+    grep -q 'handle_direct_implement()' "${SCRIPTS_DIR}/agent-dispatch.sh"
+}
+
+@test "dispatch script: direct_implement case in dispatch switch" {
+    grep -q 'direct_implement)' "${SCRIPTS_DIR}/agent-dispatch.sh"
+}
+
+@test "dispatch script: handle_direct_implement checks AGENT_ALLOW_DIRECT_IMPLEMENT" {
+    local handler_section
+    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/agent-dispatch.sh" | head -60)
+
+    echo "$handler_section" | grep -q 'AGENT_ALLOW_DIRECT_IMPLEMENT'
+}
+
+@test "dispatch script: handle_direct_implement sets agent:validating label" {
+    local handler_section
+    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/agent-dispatch.sh" | head -60)
+
+    echo "$handler_section" | grep -q 'agent:validating'
+}
+
+@test "dispatch script: handle_direct_implement uses validate prompt" {
+    local handler_section
+    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/agent-dispatch.sh" | head -80)
+
+    echo "$handler_section" | grep -q 'AGENT_PROMPT_VALIDATE'
+}
+
+@test "dispatch script: handle_direct_implement posts comment with direct-implement marker on failure" {
+    local handler_section
+    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/agent-dispatch.sh" | head -80)
+
+    echo "$handler_section" | grep -q 'agent-direct-implement'
+}
+
+@test "dispatch script: handle_direct_implement calls handle_implement on success" {
+    local handler_section
+    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/agent-dispatch.sh" | head -80)
+
+    echo "$handler_section" | grep -q 'handle_implement'
+}
