@@ -1,5 +1,7 @@
 # Update Skill: Handle New Workflow Templates
 
+> **Status:** Implemented — new Step 6 in `/update` skill detects and offers to install new workflow templates.
+
 ## Summary
 
 The `/update` skill should detect new standalone workflow templates from upstream and offer to install them, rather than requiring manual creation after each update.
