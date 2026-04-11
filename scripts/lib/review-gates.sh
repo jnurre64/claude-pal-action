@@ -141,8 +141,8 @@ run_post_impl_review() {
 # Runs a new implementation session to fix concerns, then re-reviews.
 # Returns 0 if retry succeeds, 1 if it fails.
 # Side effects: sets REVIEW_RETRY_CONCERNS, REVIEW_RETRY_COMMITS on success.
-REVIEW_RETRY_CONCERNS=""
-REVIEW_RETRY_COMMITS=""
+export REVIEW_RETRY_CONCERNS=""
+export REVIEW_RETRY_COMMITS=""
 
 handle_post_impl_review_retry() {
     local impl_tools="$1"
@@ -218,10 +218,9 @@ $(echo "$test_output" | tail -100)
     log "Post-impl retry: re-running review..."
     if run_post_impl_review; then
         log "Post-impl retry: review passed on retry"
-        REVIEW_RETRY_CONCERNS="$POST_IMPL_REVIEW_CONCERNS"
-        # Restore concerns from before retry (POST_IMPL_REVIEW_CONCERNS was cleared by approved)
-        REVIEW_RETRY_CONCERNS="${AGENT_REVIEW_CONCERNS}"
-        REVIEW_RETRY_COMMITS="${retry_start_sha:0:7}..${retry_end_sha:0:7}"
+        # Export for use by handle_post_implementation in common.sh
+        export REVIEW_RETRY_CONCERNS="${AGENT_REVIEW_CONCERNS}"
+        export REVIEW_RETRY_COMMITS="${retry_start_sha:0:7}..${retry_end_sha:0:7}"
         return 0
     else
         log "Post-impl retry: review still has concerns after retry"

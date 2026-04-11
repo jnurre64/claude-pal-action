@@ -192,10 +192,14 @@ _source_review_gates() {
     export AGENT_TEST_COMMAND=""
     _source_review_gates
 
-    local call_count=0
+    # Use file-based counter since run_claude is called in subshells via $()
+    echo "0" > "${TEST_TEMP_DIR}/call_count"
     run_claude() {
-        call_count=$((call_count + 1))
-        if [ "$call_count" -eq 1 ]; then
+        local count
+        count=$(cat "${TEST_TEMP_DIR}/call_count")
+        count=$((count + 1))
+        echo "$count" > "${TEST_TEMP_DIR}/call_count"
+        if [ "$count" -eq 1 ]; then
             # Retry implementation session
             echo '{"result":"Fixed the tests"}'
         else
