@@ -262,3 +262,112 @@ _source_review_gates() {
     triage_count=$(grep -c 'AGENT_ALLOWED_TOOLS_TRIAGE' "${LIB_DIR}/review-gates.sh")
     [ "$triage_count" -ge 2 ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# JSON extraction — narrative preamble / fence / postamble
+# Regression guard for Webber #59: Claude ignored "JSON only" rule and
+# wrote a verification summary before the final JSON object. The
+# previous parser passed the full text to jq and failed to extract
+# .action, flagging a clean "approved" review as unparseable.
+# ═══════════════════════════════════════════════════════════════
+
+@test "REGRESSION Gate A: approved JSON with narrative preamble (Webber #59)" {
+    export AGENT_ADVERSARIAL_PLAN_REVIEW="true"
+    export AGENT_PLAN_CONTENT="Test plan"
+    _source_review_gates
+
+    # Claude ignored "JSON only" and narrated its verification before the JSON.
+    # This is the exact failure shape seen on Webber issue #59.
+    run_claude() {
+        echo '{"result":"I verified all claims.\n\n**Verified:**\n- Line 302 confirmed\n- Line 3732 confirmed\n\n**No issues found.**\n\n{\"action\": \"approved\"}"}'
+    }
+
+    run run_adversarial_plan_review
+    assert_success
+}
+
+@test "REGRESSION Gate A: approved JSON wrapped in markdown code fence" {
+    export AGENT_ADVERSARIAL_PLAN_REVIEW="true"
+    export AGENT_PLAN_CONTENT="Test plan"
+    _source_review_gates
+
+    run_claude() {
+        echo '{"result":"```json\n{\"action\": \"approved\"}\n```"}'
+    }
+
+    run run_adversarial_plan_review
+    assert_success
+}
+
+@test "REGRESSION Gate A: approved JSON with trailing explanation" {
+    export AGENT_ADVERSARIAL_PLAN_REVIEW="true"
+    export AGENT_PLAN_CONTENT="Test plan"
+    _source_review_gates
+
+    run_claude() {
+        echo '{"result":"{\"action\": \"approved\"}\n\nLet me know if you need anything else."}'
+    }
+
+    run run_adversarial_plan_review
+    assert_success
+}
+
+@test "REGRESSION Gate A: multiple JSON-looking objects, last one is authoritative" {
+    export AGENT_ADVERSARIAL_PLAN_REVIEW="true"
+    export AGENT_PLAN_CONTENT="Test plan"
+    _source_review_gates
+
+    # Claude might show an example object earlier in the narrative, then
+    # the real answer at the end. The last top-level {...} wins.
+    run_claude() {
+        echo '{"result":"For example, a flagging response might look like {\"action\": \"needs_clarification\"}. But here my decision is:\n\n{\"action\": \"approved\"}"}'
+    }
+
+    run run_adversarial_plan_review
+    assert_success
+}
+
+@test "REGRESSION Gate A: corrected JSON with narrative preamble preserves revised_plan" {
+    export AGENT_ADVERSARIAL_PLAN_REVIEW="true"
+    export AGENT_PLAN_CONTENT="Plan using metric A"
+    create_mock "gh" ""
+    _source_review_gates
+
+    run_claude() {
+        echo '{"result":"After reviewing, I found the plan used the wrong metric.\n\n{\"action\": \"corrected\", \"corrections\": [\"Changed metric A to metric B\"], \"revised_plan\": \"Plan using metric B\"}"}'
+    }
+
+    run_adversarial_plan_review
+    assert_equal "$AGENT_PLAN_CONTENT" "Plan using metric B"
+}
+
+@test "REGRESSION Gate B: concerns JSON with narrative preamble sets POST_IMPL_REVIEW_CONCERNS" {
+    export AGENT_POST_IMPL_REVIEW="true"
+    _source_review_gates
+
+    run_claude() {
+        echo '{"result":"I reviewed the diff. Here are my findings:\n\n{\"action\": \"concerns\", \"concerns\": [\"Tests use simplified topology\", \"Missing edge case for empty queue\"]}"}'
+    }
+
+    run_post_impl_review || true
+    [[ "$POST_IMPL_REVIEW_CONCERNS" == *"simplified topology"* ]]
+    [[ "$POST_IMPL_REVIEW_CONCERNS" == *"empty queue"* ]]
+}
+
+@test "REGRESSION review-gates: truly garbage output still fails (no false positive)" {
+    export AGENT_ADVERSARIAL_PLAN_REVIEW="true"
+    export AGENT_PLAN_CONTENT="Test plan"
+    create_mock "gh" ""
+    _source_review_gates
+
+    # No JSON at all — should still hit the unparseable path and fail
+    run_claude() {
+        echo '{"result":"I cannot complete this review. No JSON output here."}'
+    }
+
+    run run_adversarial_plan_review
+    assert_failure
+    local calls
+    calls=$(get_mock_calls "gh")
+    [[ "$calls" == *"agent:failed"* ]]
+}

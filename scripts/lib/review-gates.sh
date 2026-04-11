@@ -3,6 +3,55 @@
 # Provides: run_adversarial_plan_review, run_post_impl_review,
 #           handle_post_impl_review_retry
 
+# ─── JSON extraction helper ─────────────────────────────────────
+# Claude sometimes prefixes a narrative preamble or wraps the JSON in
+# a markdown fence even when told not to. Extract the last balanced
+# {...} block so jq-based field lookups still work.
+#
+# Strategy: try parsing the whole text first (cheap path for compliant
+# responses); on failure, walk the text with awk, tracking brace depth,
+# and emit the last top-level object. Limitation: literal braces inside
+# quoted string values can fool the depth counter. The review gate
+# schemas (action/concerns/questions/corrections) use simple scalars and
+# string arrays, so this is acceptable in practice.
+_extract_review_json() {
+    local text="$1"
+    local whole_action
+    set +e
+    whole_action=$(printf '%s' "$text" | jq -r '.action // empty' 2>/dev/null)
+    set -e
+    if [ -n "$whole_action" ]; then
+        printf '%s' "$text"
+        return 0
+    fi
+
+    printf '%s' "$text" | awk '
+        BEGIN { depth = 0; in_obj = 0; buf = ""; last = "" }
+        {
+            line = $0
+            n = length(line)
+            for (i = 1; i <= n; i++) {
+                c = substr(line, i, 1)
+                if (c == "{") {
+                    if (depth == 0) { buf = ""; in_obj = 1 }
+                    depth++
+                }
+                if (in_obj) buf = buf c
+                if (c == "}") {
+                    if (depth > 0) depth--
+                    if (depth == 0 && in_obj) {
+                        last = buf
+                        in_obj = 0
+                        buf = ""
+                    }
+                }
+            }
+            if (in_obj) buf = buf "\n"
+        }
+        END { if (last != "") print last }
+    '
+}
+
 # ─── Gate A: Adversarial Plan Review ────────────────────────────
 # Runs a fresh Claude session to check the plan against the issue.
 # Returns 0 to proceed, 1 to halt implementation.
@@ -25,12 +74,13 @@ run_adversarial_plan_review() {
     claude_output=$(parse_claude_output "$result")
     log "Adversarial review result: ${claude_output:0:500}"
 
-    # Parse the action from the response
-    # claude_output is the result string from parse_claude_output, which may be
-    # a JSON object directly, or a JSON string that needs to be decoded.
-    local action
+    # claude_output may be a bare JSON object, a JSON object with narrative
+    # preamble/postamble, or wrapped in a markdown fence. _extract_review_json
+    # returns the last balanced {...} block so jq lookups succeed in all cases.
+    local json_block action
+    json_block=$(_extract_review_json "$claude_output")
     set +e
-    action=$(echo "$claude_output" | jq -r '.action // empty' 2>/dev/null || echo "")
+    action=$(printf '%s' "$json_block" | jq -r '.action // empty' 2>/dev/null || echo "")
     set -e
 
     case "$action" in
@@ -41,8 +91,8 @@ run_adversarial_plan_review() {
         corrected)
             log "Adversarial plan review: corrections made"
             local corrections revised_plan
-            corrections=$(echo "$claude_output" | jq -r '.corrections[]' 2>/dev/null | sed 's/^/- /')
-            revised_plan=$(echo "$claude_output" | jq -r '.revised_plan // empty' 2>/dev/null)
+            corrections=$(printf '%s' "$json_block" | jq -r '.corrections[]' 2>/dev/null | sed 's/^/- /')
+            revised_plan=$(printf '%s' "$json_block" | jq -r '.revised_plan // empty' 2>/dev/null)
 
             if [ -n "$revised_plan" ]; then
                 export AGENT_PLAN_CONTENT="$revised_plan"
@@ -62,7 +112,7 @@ Implementation will proceed with the corrected plan." 2>/dev/null || true
         needs_clarification)
             log "Adversarial plan review: needs clarification"
             local questions
-            questions=$(echo "$claude_output" | jq -r '.questions[]' 2>/dev/null | sed 's/^/- /')
+            questions=$(printf '%s' "$json_block" | jq -r '.questions[]' 2>/dev/null | sed 's/^/- /')
 
             gh issue comment "$NUMBER" --repo "$REPO" --body "<!-- agent-adversarial-review -->
 ## Adversarial Plan Review: Clarification Needed
@@ -110,9 +160,10 @@ run_post_impl_review() {
     claude_output=$(parse_claude_output "$result")
     log "Post-impl review result: ${claude_output:0:500}"
 
-    local action
+    local json_block action
+    json_block=$(_extract_review_json "$claude_output")
     set +e
-    action=$(echo "$claude_output" | jq -r '.action // empty' 2>/dev/null || echo "")
+    action=$(printf '%s' "$json_block" | jq -r '.action // empty' 2>/dev/null || echo "")
     set -e
 
     case "$action" in
@@ -122,7 +173,7 @@ run_post_impl_review() {
             ;;
         concerns)
             log "Post-implementation review: concerns found"
-            POST_IMPL_REVIEW_CONCERNS=$(echo "$claude_output" | jq -r '.concerns[]' 2>/dev/null | sed 's/^/- /')
+            POST_IMPL_REVIEW_CONCERNS=$(printf '%s' "$json_block" | jq -r '.concerns[]' 2>/dev/null | sed 's/^/- /')
             return 1
             ;;
         *)
