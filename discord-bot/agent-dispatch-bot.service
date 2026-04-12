@@ -1,7 +1,7 @@
 [Unit]
 Description=Agent Dispatch Discord Bot
-After=network-online.target
-Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
