@@ -265,9 +265,10 @@ async def handle_button_interaction(interaction: discord.Interaction) -> None:
     log.info("ACTION: %s on %s#%d by %s (id=%s)", action, repo, issue_number, interaction.user, interaction.user.id)
 
 
-def create_notify_handler(channel):
-    """Create an aiohttp handler that sends notifications to the given Discord channel."""
+def create_notify_handler(bot):
+    """Create an aiohttp handler that sends notifications via the bot's channel."""
     async def handle_notify(request: web.Request) -> web.Response:
+        channel = bot.get_channel(CHANNEL_ID)
         if channel is None:
             return web.Response(status=503, text="Channel not found")
 
@@ -287,16 +288,48 @@ def create_notify_handler(channel):
     return handle_notify
 
 
-async def start_http_server(channel) -> None:
-    """Start the local HTTP server for receiving dispatch notifications."""
+async def start_http_server(bot) -> web.AppRunner:
+    """Start the local HTTP server for receiving dispatch notifications.
+
+    Returns the AppRunner for cleanup on shutdown.
+    """
     app = web.Application()
-    handler = create_notify_handler(channel)
+    handler = create_notify_handler(bot)
     app.router.add_post("/notify", handler)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "127.0.0.1", BOT_PORT)
     await site.start()
     log.info("HTTP listener on 127.0.0.1:%d", BOT_PORT)
+    return runner
+
+
+class DispatchBot(commands.Bot):
+    """Discord bot with HTTP notification server."""
+
+    def __init__(self) -> None:
+        intents = discord.Intents.default()
+        super().__init__(command_prefix="!", intents=intents)
+        self._http_runner: web.AppRunner | None = None
+
+    async def setup_hook(self) -> None:
+        """Start the HTTP server once, before the gateway connects."""
+        self._http_runner = await start_http_server(self)
+
+    async def on_ready(self) -> None:
+        log.info("Bot ready: %s (guild %d)", self.user, GUILD_ID)
+        channel = self.get_channel(CHANNEL_ID)
+        if not channel:
+            log.error("Channel %d not found — bot may not have access", CHANNEL_ID)
+
+    async def on_interaction(self, interaction: discord.Interaction) -> None:
+        if interaction.type == discord.InteractionType.component:
+            await handle_button_interaction(interaction)
+
+    async def close(self) -> None:
+        if self._http_runner:
+            await self._http_runner.cleanup()
+        await super().close()
 
 
 def main() -> None:
@@ -311,23 +344,7 @@ def main() -> None:
         print("Error: AGENT_DISCORD_GUILD_ID is not set")
         raise SystemExit(1)
 
-    intents = discord.Intents.default()
-    bot = commands.Bot(command_prefix="!", intents=intents)
-
-    @bot.event
-    async def on_ready():
-        log.info("Bot ready: %s (guild %d)", bot.user, GUILD_ID)
-
-        channel = bot.get_channel(CHANNEL_ID)
-        if not channel:
-            log.error("Channel %d not found — bot may not have access", CHANNEL_ID)
-        await start_http_server(channel)
-
-    @bot.event
-    async def on_interaction(interaction: discord.Interaction):
-        if interaction.type == discord.InteractionType.component:
-            await handle_button_interaction(interaction)
-
+    bot = DispatchBot()
     bot.run(BOT_TOKEN, log_handler=logging.StreamHandler(), log_level=logging.INFO)
 
 
