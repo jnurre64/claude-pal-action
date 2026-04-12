@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1091  # Sourced files are resolved at runtime
 set -euo pipefail
 
 # ─── Update a standalone agent-dispatch installation from upstream ──
@@ -11,7 +12,14 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="${1:-.agent-dispatch}"
+
+# Secret-detection keywords — vars matching these are flagged and never written
+SECRET_KEYWORDS="TOKEN|KEY|SECRET|WEBHOOK|PASSWORD|CREDENTIAL"
+
+# Source config var parser (from upstream clone if available, else local)
+# Deferred until after upstream clone — see below
 
 if [ ! -d "$INSTALL_DIR" ]; then
     echo -e "${RED}Installation directory not found: $INSTALL_DIR${NC}"
@@ -49,6 +57,16 @@ trap "rm -rf '$UPSTREAM_DIR'" EXIT
 
 git clone --depth=1 "$UPSTREAM_REPO" "$UPSTREAM_DIR" 2>/dev/null
 LATEST_SHA=$(git -C "$UPSTREAM_DIR" rev-parse HEAD)
+
+# Source config var parser from upstream clone (gets the latest version)
+if [ -f "$UPSTREAM_DIR/scripts/lib/config-vars.sh" ]; then
+    # shellcheck source=lib/config-vars.sh
+    source "$UPSTREAM_DIR/scripts/lib/config-vars.sh"
+elif [ -f "$SCRIPT_DIR/lib/config-vars.sh" ]; then
+    # Fallback to local copy
+    # shellcheck source=lib/config-vars.sh
+    source "$SCRIPT_DIR/lib/config-vars.sh"
+fi
 
 echo -e "Latest upstream:  ${CYAN}${LATEST_SHA:0:12}${NC}"
 echo ""
@@ -218,6 +236,178 @@ if [ ${#NEW_FILES[@]} -gt 0 ]; then
     echo ""
 fi
 
+# ── Detect new config variables ──────────────────────────────────
+CONFIG_ADDED=0
+CONFIG_COMMENTED=0
+CONFIG_SKIPPED=0
+CONFIG_SENSITIVE=0
+
+if type parse_config_vars &>/dev/null && [ -f "$UPSTREAM_DIR/config.defaults.env.example" ]; then
+    # Parse new upstream vars
+    mapfile -t NEW_UPSTREAM_VARS < <(parse_config_vars "$UPSTREAM_DIR/config.defaults.env.example")
+
+    # Parse stored vars from .upstream config_vars: section
+    STORED_CONFIG_VARS=()
+    if grep -q '^config_vars:' "$UPSTREAM_FILE" 2>/dev/null; then
+        mapfile -t STORED_CONFIG_VARS < <(
+            sed -n '/^config_vars:/,/^[^ ]/{ /^  - /s/^  - //p }' "$UPSTREAM_FILE"
+        )
+    fi
+
+    if [ ${#STORED_CONFIG_VARS[@]} -eq 0 ]; then
+        # First-run: no config_vars: section yet — initialize tracking without prompting
+        echo -e "${CYAN}Config variable tracking initialized.${NC}"
+        echo "New settings will be detected on your next update."
+        echo "Run a manual check of config.defaults.env.example if you want to audit current settings."
+        echo ""
+    else
+        # Compute genuinely new vars: in upstream but not in stored list
+        GENUINELY_NEW_VARS=()
+        for var in "${NEW_UPSTREAM_VARS[@]}"; do
+            found=false
+            for stored in "${STORED_CONFIG_VARS[@]}"; do
+                if [ "$var" = "$stored" ]; then
+                    found=true
+                    break
+                fi
+            done
+            if [ "$found" = false ]; then
+                GENUINELY_NEW_VARS+=("$var")
+            fi
+        done
+
+        if [ ${#GENUINELY_NEW_VARS[@]} -gt 0 ]; then
+            # Determine config file path
+            # Look for config.env adjacent to the install dir (standalone layout)
+            CONFIG_ENV=""
+            if [ -f "$INSTALL_DIR/config.env" ]; then
+                CONFIG_ENV="$INSTALL_DIR/config.env"
+            elif [ -f "$(dirname "$INSTALL_DIR")/config.env" ]; then
+                CONFIG_ENV="$(dirname "$INSTALL_DIR")/config.env"
+            fi
+
+            # Parse vars already in user's config.env
+            USER_VARS=()
+            if [ -n "$CONFIG_ENV" ]; then
+                mapfile -t USER_VARS < <(parse_config_vars "$CONFIG_ENV")
+            fi
+
+            # Filter out vars user already has
+            VARS_TO_PROMPT=()
+            for var in "${GENUINELY_NEW_VARS[@]}"; do
+                already_set=false
+                for user_var in "${USER_VARS[@]}"; do
+                    if [ "$var" = "$user_var" ]; then
+                        already_set=true
+                        break
+                    fi
+                done
+                if [ "$already_set" = false ]; then
+                    VARS_TO_PROMPT+=("$var")
+                fi
+            done
+
+            if [ ${#VARS_TO_PROMPT[@]} -gt 0 ]; then
+                echo -e "${BOLD}New Configuration Settings${NC}"
+                echo "The following settings were added upstream since your last update:"
+                echo ""
+
+                # Build context lookup from upstream example
+                declare -A VAR_DEFAULTS VAR_COMMENTS
+                while IFS='|' read -r vname vdefault vcomment; do
+                    # Only store first occurrence (skip example duplicates)
+                    if [ -z "${VAR_DEFAULTS[$vname]+x}" ]; then
+                        VAR_DEFAULTS[$vname]="$vdefault"
+                        VAR_COMMENTS[$vname]="$vcomment"
+                    fi
+                done < <(parse_config_vars_with_context "$UPSTREAM_DIR/config.defaults.env.example")
+
+                BACKUP_CREATED=false
+                HEADER_WRITTEN=false
+
+                for var in "${VARS_TO_PROMPT[@]}"; do
+                    default_val="${VAR_DEFAULTS[$var]:-}"
+                    comment="${VAR_COMMENTS[$var]:-}"
+
+                    # Secret heuristic check
+                    if echo "$var" | grep -qE "$SECRET_KEYWORDS"; then
+                        echo -e "  ${YELLOW}⚠${NC}  ${BOLD}$var${NC} — flagged as potentially sensitive"
+                        if [ -n "$comment" ]; then
+                            echo "      $comment"
+                        fi
+                        echo "      This looks like a secret. Not offering to write it."
+                        echo ""
+                        CONFIG_SENSITIVE=$((CONFIG_SENSITIVE + 1))
+                        continue
+                    fi
+
+                    echo -e "  ${BOLD}$var${NC}"
+                    if [ -n "$comment" ]; then
+                        echo -e "      ${comment}"
+                    fi
+                    if [ -n "$default_val" ]; then
+                        echo -e "      Upstream default: ${CYAN}${default_val}${NC}"
+                    else
+                        echo -e "      Upstream default: ${CYAN}(empty)${NC}"
+                    fi
+                    echo ""
+
+                    read -rp "      (A)dd active / (c)ommented (default) / (s)kip: " CHOICE
+                    CHOICE="${CHOICE:-c}"
+
+                    case "$CHOICE" in
+                        a|A)
+                            if [ -n "$CONFIG_ENV" ]; then
+                                # Create backup before first write
+                                if [ "$BACKUP_CREATED" = false ]; then
+                                    cp "$CONFIG_ENV" "${CONFIG_ENV}.bak.$(date '+%Y%m%d')"
+                                    BACKUP_CREATED=true
+                                fi
+                                # Write section header before first entry
+                                if [ "$HEADER_WRITTEN" = false ]; then
+                                    echo "" >> "$CONFIG_ENV"
+                                    echo "# ── Added by /update on $(date '+%Y-%m-%d') ──" >> "$CONFIG_ENV"
+                                    HEADER_WRITTEN=true
+                                fi
+                                echo "${var}=\"${default_val}\"" >> "$CONFIG_ENV"
+                                echo -e "      ${GREEN}✓${NC} Added to config.env"
+                                CONFIG_ADDED=$((CONFIG_ADDED + 1))
+                            else
+                                echo -e "      ${YELLOW}!${NC} No config.env found — skipped"
+                                CONFIG_SKIPPED=$((CONFIG_SKIPPED + 1))
+                            fi
+                            ;;
+                        c|C)
+                            if [ -n "$CONFIG_ENV" ]; then
+                                if [ "$BACKUP_CREATED" = false ]; then
+                                    cp "$CONFIG_ENV" "${CONFIG_ENV}.bak.$(date '+%Y%m%d')"
+                                    BACKUP_CREATED=true
+                                fi
+                                if [ "$HEADER_WRITTEN" = false ]; then
+                                    echo "" >> "$CONFIG_ENV"
+                                    echo "# ── Added by /update on $(date '+%Y-%m-%d') ──" >> "$CONFIG_ENV"
+                                    HEADER_WRITTEN=true
+                                fi
+                                echo "# ${var}=\"${default_val}\"  # (upstream default)" >> "$CONFIG_ENV"
+                                echo -e "      ${GREEN}✓${NC} Added as commented entry"
+                                CONFIG_COMMENTED=$((CONFIG_COMMENTED + 1))
+                            else
+                                echo -e "      ${YELLOW}!${NC} No config.env found — skipped"
+                                CONFIG_SKIPPED=$((CONFIG_SKIPPED + 1))
+                            fi
+                            ;;
+                        *)
+                            echo -e "      ${CYAN}→${NC} Skipped"
+                            CONFIG_SKIPPED=$((CONFIG_SKIPPED + 1))
+                            ;;
+                    esac
+                    echo ""
+                done
+            fi
+        fi
+    fi
+fi
+
 # ── Update .upstream tracking ────────────────────────────────────
 echo -e "${CYAN}Updating version tracking...${NC}"
 {
@@ -234,11 +424,37 @@ echo -e "${CYAN}Updating version tracking...${NC}"
             echo "  ${file}: \"sha256:${checksum}\""
         fi
     done
+    # Track known config vars for future new-var detection
+    if type parse_config_vars &>/dev/null && [ -f "$UPSTREAM_DIR/config.defaults.env.example" ]; then
+        echo "config_vars:"
+        parse_config_vars "$UPSTREAM_DIR/config.defaults.env.example" | while read -r var; do
+            echo "  - $var"
+        done
+    fi
 } > "$UPSTREAM_FILE"
 
 echo -e "  ${GREEN}✓${NC} Updated .upstream to ${LATEST_SHA:0:12}"
 echo ""
 
 echo -e "${BOLD}Update complete.${NC}"
+
+# Config migration summary
+CONFIG_TOTAL=$((CONFIG_ADDED + CONFIG_COMMENTED + CONFIG_SKIPPED + CONFIG_SENSITIVE))
+if [ "$CONFIG_TOTAL" -gt 0 ]; then
+    echo -n "Config: $CONFIG_TOTAL new setting(s) detected"
+    details=()
+    [ "$CONFIG_ADDED" -gt 0 ] && details+=("$CONFIG_ADDED added")
+    [ "$CONFIG_COMMENTED" -gt 0 ] && details+=("$CONFIG_COMMENTED commented")
+    [ "$CONFIG_SKIPPED" -gt 0 ] && details+=("$CONFIG_SKIPPED skipped")
+    [ "$CONFIG_SENSITIVE" -gt 0 ] && details+=("$CONFIG_SENSITIVE sensitive")
+    if [ ${#details[@]} -gt 0 ]; then
+        echo -n " ("
+        IFS=', ' ; echo -n "${details[*]}" ; IFS=$' \t\n'
+        echo ")"
+    else
+        echo ""
+    fi
+fi
+
 echo "Don't forget to commit: git add .agent-dispatch/ && git commit -m 'Update agent-dispatch from upstream'"
 echo ""

@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1091  # Sourced files are resolved at runtime
 set -euo pipefail
 
 # ─── Interactive setup wizard for claude-agent-dispatch ──────────
@@ -6,6 +7,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Source config var parser for tracking known config variables
+if [ -f "$SCRIPT_DIR/lib/config-vars.sh" ]; then
+    # shellcheck source=lib/config-vars.sh
+    source "$SCRIPT_DIR/lib/config-vars.sh"
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -164,6 +171,13 @@ if [ "$SETUP_MODE" = "2" ]; then
         if [ -f "$AGENT_DIR/labels.txt" ]; then
             file_checksum=$(sha256sum "$AGENT_DIR/labels.txt" | cut -d' ' -f1)
             echo "  labels.txt: \"sha256:${file_checksum}\""
+        fi
+        # Track known config vars for future new-var detection
+        if type parse_config_vars &>/dev/null && [ -f "$REPO_ROOT/config.defaults.env.example" ]; then
+            echo "config_vars:"
+            parse_config_vars "$REPO_ROOT/config.defaults.env.example" | while read -r var; do
+                echo "  - $var"
+            done
         fi
     } > "$AGENT_DIR/.upstream"
     echo -e "  ${GREEN}✓${NC} Version tracking written (.upstream)"
