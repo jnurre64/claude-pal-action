@@ -2,7 +2,33 @@
 
 This document covers common problems, their causes, and how to resolve them.
 
+## Automated Diagnostics with `/troubleshoot`
+
+The `/troubleshoot` Claude Code skill automates most of the diagnostic steps described in this document. If you have an active Claude session, use it before working through the manual steps below.
+
+**Diagnose a specific issue:**
+
+```
+/troubleshoot 42
+```
+
+Reconstructs a timeline from dispatch logs, issue labels, comments, and workflow runs. Matches the observed state against known failure patterns (timeout, circuit breaker, permission denied, worktree conflict, and more) and produces a structured report with a suggested fix.
+
+**Run a system health check:**
+
+```
+/troubleshoot
+```
+
+Checks 6 areas — runner environment, config validation, disk/worktree health, bot services, recent failures, and file permissions — and reports pass/warn/fail for each.
+
+The skill detects whether it is running on the self-hosted runner (full local log access) or a remote machine (degrades gracefully to `gh`-based diagnostics only). The manual steps below remain useful when you don't have a Claude session open or need to investigate beyond what the skill covers.
+
+---
+
 ## Agent Does Not Respond to Label
+
+> Automatically detected by `/troubleshoot <number>` — pattern: **Runner offline** (no workflow run found for the label event).
 
 **Symptom**: You add the `agent` label to an issue, but nothing happens. No comment, no label change.
 
@@ -72,6 +98,8 @@ Labels are case-sensitive. Ensure the label you added matches exactly what the w
 
 ## Agent Posts "Halted" Comment
 
+> Automatically detected by `/troubleshoot <number>` — pattern: **Circuit breaker**.
+
 **Symptom**: The agent comments "Agent halted: too many comments in the last hour" and the issue is labeled `agent:failed`.
 
 ### Cause
@@ -97,6 +125,8 @@ The circuit breaker triggered. The bot account posted `AGENT_CIRCUIT_BREAKER_LIM
 ---
 
 ## Agent Fails to Create PR
+
+> Automatically detected by `/troubleshoot <number>` — pattern: **PR creation failure**.
 
 **Symptom**: The dispatch log shows "Failed to create PR" and the issue is labeled `agent:failed`, but the branch exists with commits.
 
@@ -143,6 +173,8 @@ gh pr create --repo OWNER/REPO --head "agent/issue-42" \
 
 ## Agent Makes Wrong Changes
 
+> Not automatically detected — this is a correctness issue rather than a dispatch failure. Review the agent's plan and prompts manually.
+
 **Symptom**: The agent creates a PR, but the changes are incorrect, miss the point, or violate project conventions.
 
 ### Check 1: CLAUDE.md Conventions
@@ -174,6 +206,8 @@ Request changes on the PR. The agent will automatically address review feedback 
 ---
 
 ## Worktree Conflicts
+
+> Automatically detected by `/troubleshoot <number>` — pattern: **Worktree conflict**.
 
 **Symptom**: The dispatch log shows errors related to worktrees, such as "fatal: is already checked out" or the agent fails during `setup_worktree`.
 
@@ -210,6 +244,8 @@ After cleanup, retry the issue by removing all `agent:*` labels and re-adding `a
 
 ## Claude Times Out
 
+> Automatically detected by `/troubleshoot <number>` — pattern: **Timeout**.
+
 **Symptom**: The dispatch log shows "Claude exited with code 124" (the timeout signal) or "Claude timed out or errored".
 
 ### Cause
@@ -244,6 +280,8 @@ AGENT_MAX_TURNS=400
 ---
 
 ## Tests Fail in Pre-PR Gate
+
+> Automatically detected by `/troubleshoot <number>` — pattern: **Test gate failure**.
 
 **Symptom**: The issue gets an `agent:failed` label and a comment with "Test Failure (Pre-PR Gate)" showing test output.
 
@@ -289,6 +327,8 @@ The agent's commits are still in the worktree (but not pushed). You can:
 
 ## "Permission Denied" Errors
 
+> Automatically detected by `/troubleshoot <number>` — pattern: **Permission denied**.
+
 **Symptom**: The dispatch log or stderr shows permission errors when running `gh` commands, pushing branches, or creating PRs.
 
 ### Check 1: PAT Scopes
@@ -333,6 +373,8 @@ If this fails, check `~/.git-credentials` or the git credential helper configura
 ---
 
 ## Workflow Never Triggers
+
+> Automatically detected by `/troubleshoot <number>` — pattern: **Runner offline** (no workflow run found for the label event).
 
 **Symptom**: You add a label but the Actions tab shows no workflow run at all (not even a failed one).
 

@@ -132,7 +132,7 @@ The system adapts to any project through your CLAUDE.md (coding conventions), cu
 | [Runners](docs/runners.md) | Self-hosted runner setup |
 | [Security](docs/security.md) | Threat model, safety mechanisms, security checklist |
 | [Testing](docs/testing.md) | BATS test suite — 52 tests, regression coverage, writing new tests |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions — use `/troubleshoot` for automated diagnostics |
 | [Versioning](docs/versioning.md) | SemVer policy, release process, changelog conventions |
 
 ## Contributing
