@@ -46,8 +46,10 @@ _download_linked_files() {
         # If basename is a uuid (no extension), try to get name from markdown link
         if [[ "$attach_filename" != *.* ]]; then
             # Try to find the markdown link label for this URL: [label](attach_url)
-            # Escape dots in URL for use in bash regex (line 42's charset permits only . as a regex metachar).
-            local url_re="${attach_url//./\\.}"
+            # Escape dots in URL for use in bash regex. The attachment-URL regex
+            # above constrains characters to [a-zA-Z0-9_./-], so . is the only
+            # regex metacharacter we need to handle.
+            local url_re="${attach_url//./"\\."}"
             local md_name=""
             if [[ "$text" =~ \[([^]]+)\]\($url_re\) ]]; then
                 md_name="${BASH_REMATCH[1]}"
