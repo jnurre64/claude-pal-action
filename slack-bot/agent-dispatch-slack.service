@@ -1,0 +1,16 @@
+[Unit]
+Description=Agent Dispatch Slack Bot
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=WORKING_DIR
+EnvironmentFile=CONFIG_PATH
+ExecStart=WORKING_DIR/.venv/bin/python bot.py
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target
