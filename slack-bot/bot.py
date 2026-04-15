@@ -89,3 +89,71 @@ def build_actions(event_type: str, issue_number: int, url: str, repo: str) -> li
             {"type": "button", "text": {"type": "plain_text", "text": "Retry"}, "action_id": "retry", "value": value, "style": "primary"},
         )
     return [{"type": "actions", "elements": elements}]
+
+
+def parse_value(value: str) -> tuple[str | None, int | None]:
+    """Parse 'owner/repo:issue_number' from a button value."""
+    parts = value.rsplit(":", 1)
+    if len(parts) != 2:
+        return None, None
+    try:
+        return parts[0], int(parts[1])
+    except ValueError:
+        return None, None
+
+
+async def is_authorized(user_id: str, client) -> bool:
+    """Check if a Slack user is authorized to use bot actions.
+
+    Uses shared auth for user-level checks. Group membership is checked
+    via the Slack API if ALLOWED_GROUP is configured.
+    """
+    if is_authorized_check(user_id, [], ALLOWED_USERS, ""):
+        return True
+    if ALLOWED_GROUP:
+        try:
+            result = await client.usergroups_users_list(usergroup=ALLOWED_GROUP)
+            return user_id in result.get("users", [])
+        except Exception:
+            log.warning("Failed to check user group membership for %s", user_id)
+    return False
+
+
+def build_updated_attachments(message: dict, action_text: str) -> list[dict]:
+    """Build updated attachments after a button action is taken.
+
+    Replaces interactive buttons with a view-only link and appends
+    a context block showing who performed the action.
+    """
+    attachments = message.get("attachments", [])
+    if not attachments:
+        return []
+    old = attachments[0]
+    blocks = old.get("blocks", [])
+    color = old.get("color", "#95A5A6")
+
+    updated: list[dict] = []
+    for block in blocks:
+        if block["type"] == "actions":
+            view_url = None
+            for elem in block.get("elements", []):
+                if elem.get("url"):
+                    view_url = elem["url"]
+                    break
+            if view_url:
+                updated.append({
+                    "type": "actions",
+                    "elements": [{
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "View"},
+                        "url": view_url,
+                        "action_id": "view_link",
+                    }],
+                })
+        else:
+            updated.append(block)
+    updated.append({
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": action_text}],
+    })
+    return [{"color": color, "blocks": updated}]
