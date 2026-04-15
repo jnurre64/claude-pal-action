@@ -260,6 +260,9 @@ notify() {
                     fi
                 fi
                 ;;
+            *)
+                echo "WARNING: unknown notification backend '${backend}'" >&2
+                ;;
         esac
     done
 }
