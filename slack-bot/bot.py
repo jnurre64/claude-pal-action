@@ -518,3 +518,62 @@ def create_notify_handler(slack_client):
         return web.Response(text="OK")
 
     return handle_notify
+
+
+def create_app():
+    """Create and configure the Slack AsyncApp with all handlers."""
+    from slack_bolt.async_app import AsyncApp as _AsyncApp
+
+    slack_app = _AsyncApp(token=BOT_TOKEN)
+    slack_app.action("approve")(handle_approve)
+    slack_app.action("retry")(handle_retry)
+    slack_app.action("changes")(handle_changes)
+    slack_app.action("comment")(handle_comment)
+    slack_app.action("view_link")(handle_view_link)
+    slack_app.view("feedback_modal")(handle_feedback_submit)
+    slack_app.command("/agent-approve")(cmd_approve)
+    slack_app.command("/agent-reject")(cmd_reject)
+    slack_app.command("/agent-comment")(cmd_comment)
+    slack_app.command("/agent-status")(cmd_status)
+    slack_app.command("/agent-retry")(cmd_retry)
+    return slack_app
+
+
+async def run() -> None:
+    """Start HTTP listener and Socket Mode handler."""
+    from slack_bolt.adapter.socket_mode.aiohttp import AsyncSocketModeHandler
+
+    app = create_app()
+    handler = create_notify_handler(app.client)
+    http_runner = await start_http_server(handler, port=BOT_PORT)
+
+    try:
+        socket_handler = AsyncSocketModeHandler(app, APP_TOKEN)
+        await socket_handler.start_async()
+    finally:
+        await http_runner.cleanup()
+
+
+def main() -> None:
+    """Bot entrypoint."""
+    import asyncio
+
+    if not BOT_TOKEN:
+        print("Error: AGENT_SLACK_BOT_TOKEN is not set")
+        raise SystemExit(1)
+    if not APP_TOKEN:
+        print("Error: AGENT_SLACK_APP_TOKEN is not set")
+        raise SystemExit(1)
+    if not CHANNEL_ID:
+        print("Error: AGENT_SLACK_CHANNEL_ID is not set")
+        raise SystemExit(1)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
+    asyncio.run(run())
+
+
+if __name__ == "__main__":
+    main()
