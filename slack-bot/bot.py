@@ -6,6 +6,7 @@ import os
 
 from aiohttp import web
 
+from dispatch_bot.channel_map import parse_channel_map, resolve_channel
 from dispatch_bot.events import (
     EVENT_INDICATORS,
     EVENT_LABELS,
@@ -23,6 +24,7 @@ log = logging.getLogger("dispatch-bot")
 BOT_TOKEN = os.environ.get("AGENT_SLACK_BOT_TOKEN", "")
 APP_TOKEN = os.environ.get("AGENT_SLACK_APP_TOKEN", "")
 CHANNEL_ID = os.environ.get("AGENT_SLACK_CHANNEL_ID", "")
+CHANNEL_MAP = parse_channel_map(os.environ.get("AGENT_SLACK_CHANNEL_MAP", ""))
 ALLOWED_USERS = set(os.environ.get("AGENT_SLACK_ALLOWED_USERS", "").split(",")) - {""}
 ALLOWED_GROUP = os.environ.get("AGENT_SLACK_ALLOWED_GROUP", "")
 BOT_PORT = int(os.environ.get("AGENT_SLACK_BOT_PORT", "8676"))
@@ -488,12 +490,7 @@ async def cmd_retry(ack, respond, body, client) -> None:
 
 def create_notify_handler(slack_client):
     """Create an aiohttp handler that sends notifications to Slack."""
-    channel_id = CHANNEL_ID
-
     async def handle_notify(request: web.Request) -> web.Response:
-        if not channel_id:
-            return web.Response(status=503, text="Channel not configured")
-
         data = await request.json()
         event_type = data["event_type"]
         title = data["title"]
@@ -501,6 +498,18 @@ def create_notify_handler(slack_client):
         description = data.get("description", "")
         issue_number = data.get("issue_number", 0)
         repo = data.get("repo", "")
+
+        target_channel = resolve_channel(repo, CHANNEL_MAP, CHANNEL_ID)
+
+        if not target_channel:
+            match = "muted" if repo in CHANNEL_MAP else "dropped"
+            log.info(
+                "notify dispatched repo=%s platform=slack match=%s event=%s",
+                repo, match, event_type,
+            )
+            return web.Response(text="OK")
+
+        match = "direct" if repo in CHANNEL_MAP else "fallback"
 
         blocks = build_blocks(event_type, title, url, description, issue_number, repo)
         actions = build_actions(event_type, issue_number, url, repo)
@@ -511,9 +520,13 @@ def create_notify_handler(slack_client):
         fallback_text = f"{indicator} {label} -- #{issue_number}: {title}"
 
         await slack_client.chat_postMessage(
-            channel=channel_id,
+            channel=target_channel,
             text=fallback_text,
             attachments=[{"color": color, "blocks": blocks + actions}],
+        )
+        log.info(
+            "notify dispatched repo=%s platform=slack channel=%s match=%s event=%s",
+            repo, target_channel, match, event_type,
         )
         return web.Response(text="OK")
 
@@ -564,8 +577,8 @@ def main() -> None:
     if not APP_TOKEN:
         print("Error: AGENT_SLACK_APP_TOKEN is not set")
         raise SystemExit(1)
-    if not CHANNEL_ID:
-        print("Error: AGENT_SLACK_CHANNEL_ID is not set")
+    if not CHANNEL_ID and not CHANNEL_MAP:
+        print("Error: at least one of AGENT_SLACK_CHANNEL_ID or AGENT_SLACK_CHANNEL_MAP must be set")
         raise SystemExit(1)
 
     logging.basicConfig(

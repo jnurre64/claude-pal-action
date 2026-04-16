@@ -160,3 +160,92 @@ AGENT_NOTIFY_BACKEND="bot,slack"
 # Discord webhook + Slack bot
 AGENT_NOTIFY_BACKEND="webhook,slack"
 ```
+
+## Phase 4: Per-Repo Channel Routing
+
+When managing multiple repositories, you often want notifications routed to different channels: one team's work to one channel, another team's to another, and some repos muted on a specific platform. Per-repo channel routing supports this without forcing every repo into every map.
+
+### When to Use
+
+- You manage multiple repos from one dispatch host and want team-specific channels
+- You want a repo to notify on Discord but not Slack (or vice versa)
+- You want a catch-all default channel but specific overrides for some repos
+
+### Configuration
+
+Four optional env vars, one per backend:
+
+| Variable | Scope |
+|---|---|
+| `AGENT_DISCORD_CHANNEL_MAP` | Discord bot channel routing |
+| `AGENT_SLACK_CHANNEL_MAP` | Slack bot channel routing |
+| `AGENT_NOTIFY_DISCORD_WEBHOOK_MAP` | Discord webhook URL routing |
+| `AGENT_NOTIFY_SLACK_WEBHOOK_MAP` | Slack webhook URL routing |
+
+**Format:** single line, comma-separated entries, `=` separates key from value:
+
+```bash
+AGENT_DISCORD_CHANNEL_MAP="owner/repo-a=123456789,owner/repo-b=987654321,owner/muted-repo="
+```
+
+### Lookup Semantics
+
+Each notification resolves the channel for its source repo through three distinct outcomes:
+
+| Map state | Meaning | Behavior |
+|---|---|---|
+| Repo in map, value present | Explicit channel | Send to mapped channel (`match=direct`) |
+| Repo in map, value empty | Explicit mute | Skip silently, no fallback (`match=muted`) |
+| Repo **not** in map | No mapping | Use `AGENT_*_CHANNEL_ID` / `AGENT_NOTIFY_*_WEBHOOK` if set (`match=fallback`); skip if not (`match=dropped`) |
+
+The distinction between "explicit mute" and "not in map" is what enables per-platform opt-out without forcing you to enumerate every repo in every map.
+
+### Per-Platform Opt-Out
+
+Each platform's map is independent. You can send a repo to Discord but silence it on Slack:
+
+```bash
+AGENT_DISCORD_CHANNEL_MAP="org/internal-tool=123"
+AGENT_SLACK_CHANNEL_MAP="org/internal-tool="     # explicit mute on Slack
+```
+
+### Worked Example
+
+Three repos (`dodge-the-creeps-demo`, `recipe-manager-demo`, `Webber`). Route all three to their own Discord channels, but only `Webber` to Slack:
+
+```bash
+# Discord — each repo to its own channel
+AGENT_DISCORD_CHANNEL_MAP="Frightful-Games/dodge-the-creeps-demo=DISCORD_DODGE_ID,Frightful-Games/recipe-manager-demo=DISCORD_RECIPE_ID,Frightful-Games/Webber=DISCORD_WEBBER_ID"
+
+# Slack — only Webber sends; the other two are explicitly muted
+AGENT_SLACK_CHANNEL_MAP="Frightful-Games/dodge-the-creeps-demo=,Frightful-Games/recipe-manager-demo=,Frightful-Games/Webber=SLACK_WEBBER_ID"
+
+# Both backends active — each routes independently
+AGENT_NOTIFY_BACKEND="bot,slack"
+
+# No defaults — unmapped repos are silently dropped (no catch-all channel)
+# AGENT_DISCORD_CHANNEL_ID=""
+# AGENT_SLACK_CHANNEL_ID=""
+```
+
+### Requirements
+
+After enabling maps, at least one of (default channel, channel map) must be set for each bot you run. Bots now fail at startup with a clear error if both are empty.
+
+### Logging
+
+Every dispatch emits one INFO log line with:
+
+- `repo` — source repository
+- `platform` — `discord` or `slack`
+- `match_type` — `direct`, `fallback`, `muted`, or `dropped`
+- `event_type` — which milestone triggered the notification
+
+Use `match=muted` to answer "why didn't I get this notification?" — a muted dispatch still appears in the log, distinguishing it from misconfiguration.
+
+### Parsing Details
+
+- Whitespace around entries, keys, and values is trimmed
+- Split is on the **first** `=` only, so values may contain `=` (useful for URL-like webhook values)
+- Malformed entries (no `=`, empty key) are silently skipped
+- Match is **exact**: `owner/repo` does **not** match `owner/repo-fork`

@@ -116,11 +116,51 @@ _notify_build_discord_embed() {
         }'
 }
 
+# ─── Resolve a value for a given repo from a comma-separated key=value map ──
+# Usage: _notify_resolve_from_map <repo> <map_value>
+# stdout empty + exit 0  -> explicit mute (empty value in map)
+# stdout value + exit 0  -> mapped value
+# exit 1                 -> no mapping (caller should use default)
+_notify_resolve_from_map() {
+    local repo="$1" map="$2"
+    [ -z "$map" ] && return 1
+    local old_ifs="$IFS"
+    IFS=','
+    # shellcheck disable=SC2206  # intentional word-splitting on ','
+    local entries=( $map )
+    IFS="$old_ifs"
+    local entry key val
+    for entry in "${entries[@]}"; do
+        # Trim leading/trailing whitespace
+        entry="${entry#"${entry%%[![:space:]]*}"}"
+        entry="${entry%"${entry##*[![:space:]]}"}"
+        # Skip blank and entries without '='
+        [ -z "$entry" ] && continue
+        case "$entry" in
+            *=*) ;;
+            *) continue ;;
+        esac
+        key="${entry%%=*}"
+        val="${entry#*=}"
+        # Trim whitespace around key and value
+        key="${key#"${key%%[![:space:]]*}"}"
+        key="${key%"${key##*[![:space:]]}"}"
+        val="${val#"${val%%[![:space:]]*}"}"
+        val="${val%"${val##*[![:space:]]}"}"
+        [ -z "$key" ] && continue
+        if [ "$key" = "$repo" ]; then
+            printf '%s' "$val"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # ─── Send to Discord webhook ──────────────────────────────────────
-# Usage: _notify_send_discord <json_payload>
+# Usage: _notify_send_discord <json_payload> <webhook_url>
 _notify_send_discord() {
     local json="$1"
-    local webhook_url="${AGENT_NOTIFY_DISCORD_WEBHOOK}"
+    local webhook_url="$2"
 
     # Append thread_id query parameter if configured
     if [ -n "${AGENT_NOTIFY_DISCORD_THREAD_ID:-}" ]; then
@@ -200,14 +240,64 @@ _notify_build_slack_message() {
 }
 
 # ─── Send to Slack webhook ────────────────────────────────────────
-# Usage: _notify_send_slack_webhook <json_payload>
+# Usage: _notify_send_slack_webhook <json_payload> <webhook_url>
 _notify_send_slack_webhook() {
     local json="$1"
-    local webhook_url="${AGENT_NOTIFY_SLACK_WEBHOOK}"
+    local webhook_url="$2"
 
     curl -s -o /dev/null -X POST "$webhook_url" \
         -H "Content-Type: application/json" \
         -d "$json" 2>/dev/null || true
+}
+
+# ─── Dispatch to Discord webhook with per-repo routing ────────────
+# Usage: _notify_dispatch_discord_webhook <event_type> <title> <url> <description>
+_notify_dispatch_discord_webhook() {
+    local event_type="$1" title="$2" url="$3" description="$4"
+    local resolved_url match
+    if resolved_url=$(_notify_resolve_from_map "${REPO:-}" "${AGENT_NOTIFY_DISCORD_WEBHOOK_MAP:-}"); then
+        if [ -z "$resolved_url" ]; then
+            echo "level=info component=notify repo=${REPO:-} dest=discord_webhook match=muted event=${event_type}" >&2
+            return 0
+        fi
+        match="direct"
+    else
+        resolved_url="${AGENT_NOTIFY_DISCORD_WEBHOOK:-}"
+        match="fallback"
+    fi
+    if [ -z "$resolved_url" ]; then
+        echo "level=info component=notify repo=${REPO:-} dest=discord_webhook match=dropped event=${event_type}" >&2
+        return 0
+    fi
+    echo "level=info component=notify repo=${REPO:-} dest=discord_webhook match=${match} event=${event_type}" >&2
+    local discord_json
+    discord_json=$(_notify_build_discord_embed "$event_type" "$title" "$url" "$description")
+    _notify_send_discord "$discord_json" "$resolved_url"
+}
+
+# ─── Dispatch to Slack webhook with per-repo routing ──────────────
+# Usage: _notify_dispatch_slack_webhook <event_type> <title> <url> <description>
+_notify_dispatch_slack_webhook() {
+    local event_type="$1" title="$2" url="$3" description="$4"
+    local resolved_url match
+    if resolved_url=$(_notify_resolve_from_map "${REPO:-}" "${AGENT_NOTIFY_SLACK_WEBHOOK_MAP:-}"); then
+        if [ -z "$resolved_url" ]; then
+            echo "level=info component=notify repo=${REPO:-} dest=slack_webhook match=muted event=${event_type}" >&2
+            return 0
+        fi
+        match="direct"
+    else
+        resolved_url="${AGENT_NOTIFY_SLACK_WEBHOOK:-}"
+        match="fallback"
+    fi
+    if [ -z "$resolved_url" ]; then
+        echo "level=info component=notify repo=${REPO:-} dest=slack_webhook match=dropped event=${event_type}" >&2
+        return 0
+    fi
+    echo "level=info component=notify repo=${REPO:-} dest=slack_webhook match=${match} event=${event_type}" >&2
+    local slack_json
+    slack_json=$(_notify_build_slack_message "$event_type" "$title" "$url" "$description")
+    _notify_send_slack_webhook "$slack_json" "$resolved_url"
 }
 
 # ─── Main notification function ────────────────────────────────────
@@ -236,28 +326,16 @@ notify() {
 
         case "$backend" in
             webhook)
-                if [ -n "${AGENT_NOTIFY_DISCORD_WEBHOOK:-}" ]; then
-                    local discord_json
-                    discord_json=$(_notify_build_discord_embed "$event_type" "$title" "$url" "$description")
-                    _notify_send_discord "$discord_json"
-                fi
+                _notify_dispatch_discord_webhook "$event_type" "$title" "$url" "$description"
                 ;;
             bot)
                 if ! _notify_send_bot "$event_type" "$title" "$url" "$description"; then
-                    if [ -n "${AGENT_NOTIFY_DISCORD_WEBHOOK:-}" ]; then
-                        local discord_json
-                        discord_json=$(_notify_build_discord_embed "$event_type" "$title" "$url" "$description")
-                        _notify_send_discord "$discord_json"
-                    fi
+                    _notify_dispatch_discord_webhook "$event_type" "$title" "$url" "$description"
                 fi
                 ;;
             slack)
                 if ! _notify_send_slack_bot "$event_type" "$title" "$url" "$description"; then
-                    if [ -n "${AGENT_NOTIFY_SLACK_WEBHOOK:-}" ]; then
-                        local slack_json
-                        slack_json=$(_notify_build_slack_message "$event_type" "$title" "$url" "$description")
-                        _notify_send_slack_webhook "$slack_json"
-                    fi
+                    _notify_dispatch_slack_webhook "$event_type" "$title" "$url" "$description"
                 fi
                 ;;
             *)

@@ -7,6 +7,7 @@ import discord
 from discord.ext import commands
 from aiohttp import web
 
+from dispatch_bot.channel_map import parse_channel_map, resolve_channel
 from dispatch_bot.events import (
     EVENT_INDICATORS,
     EVENT_LABELS,
@@ -23,6 +24,7 @@ log = logging.getLogger("dispatch-bot")
 # --- Configuration (from environment) ---
 BOT_TOKEN = os.environ.get("AGENT_DISCORD_BOT_TOKEN", "")
 CHANNEL_ID = int(os.environ.get("AGENT_DISCORD_CHANNEL_ID", "0"))
+CHANNEL_MAP = parse_channel_map(os.environ.get("AGENT_DISCORD_CHANNEL_MAP", ""))
 GUILD_ID = int(os.environ.get("AGENT_DISCORD_GUILD_ID", "0"))
 ALLOWED_USERS = set(os.environ.get("AGENT_DISCORD_ALLOWED_USERS", "").split(",")) - {""}
 ALLOWED_ROLE = os.environ.get("AGENT_DISCORD_ALLOWED_ROLE", "")
@@ -204,10 +206,6 @@ async def handle_button_interaction(interaction: discord.Interaction) -> None:
 def create_notify_handler(bot):
     """Create an aiohttp handler that sends notifications via the bot's channel."""
     async def handle_notify(request: web.Request) -> web.Response:
-        channel = bot.get_channel(CHANNEL_ID)
-        if channel is None:
-            return web.Response(status=503, text="Channel not found")
-
         data = await request.json()
         event_type = data["event_type"]
         title = data["title"]
@@ -216,9 +214,29 @@ def create_notify_handler(bot):
         issue_number = data.get("issue_number", 0)
         repo = data.get("repo", "")
 
+        default = str(CHANNEL_ID) if CHANNEL_ID else ""
+        target_id = resolve_channel(repo, CHANNEL_MAP, default)
+
+        if not target_id:
+            match = "muted" if repo in CHANNEL_MAP else "dropped"
+            log.info(
+                "notify dispatched repo=%s platform=discord match=%s event=%s",
+                repo, match, event_type,
+            )
+            return web.Response(text="OK")
+
+        match = "direct" if repo in CHANNEL_MAP else "fallback"
+        channel = bot.get_channel(int(target_id))
+        if channel is None:
+            return web.Response(status=503, text="Channel not found")
+
         embed = build_embed(event_type, title, url, description, issue_number, repo)
         view = build_buttons(event_type, issue_number, url, repo)
         await channel.send(embed=embed, view=view)
+        log.info(
+            "notify dispatched repo=%s platform=discord channel=%s match=%s event=%s",
+            repo, target_id, match, event_type,
+        )
         return web.Response(text="OK")
 
     return handle_notify
@@ -239,9 +257,11 @@ class DispatchBot(commands.Bot):
 
     async def on_ready(self) -> None:
         log.info("Bot ready: %s (guild %d)", self.user, GUILD_ID)
-        channel = self.get_channel(CHANNEL_ID)
-        if not channel:
-            log.error("Channel %d not found — bot may not have access", CHANNEL_ID)
+        log.debug("channel map loaded: %d entries", len(CHANNEL_MAP))
+        if CHANNEL_ID:
+            channel = self.get_channel(CHANNEL_ID)
+            if not channel:
+                log.error("Channel %d not found — bot may not have access", CHANNEL_ID)
 
     async def on_interaction(self, interaction: discord.Interaction) -> None:
         if interaction.type == discord.InteractionType.component:
@@ -258,8 +278,8 @@ def main() -> None:
     if not BOT_TOKEN:
         print("Error: AGENT_DISCORD_BOT_TOKEN is not set")
         raise SystemExit(1)
-    if not CHANNEL_ID:
-        print("Error: AGENT_DISCORD_CHANNEL_ID is not set")
+    if not CHANNEL_ID and not CHANNEL_MAP:
+        print("Error: at least one of AGENT_DISCORD_CHANNEL_ID or AGENT_DISCORD_CHANNEL_MAP must be set")
         raise SystemExit(1)
     if not GUILD_ID:
         print("Error: AGENT_DISCORD_GUILD_ID is not set")

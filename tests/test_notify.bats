@@ -11,22 +11,32 @@ _source_notify() {
 # No-op behavior when unconfigured
 # ===================================================================
 
-@test "notify: silently no-ops when AGENT_NOTIFY_DISCORD_WEBHOOK is empty" {
+@test "notify: does not send when AGENT_NOTIFY_DISCORD_WEBHOOK is empty (logs match=dropped)" {
     export AGENT_NOTIFY_DISCORD_WEBHOOK=""
+    create_mock "curl" ""
     _source_notify
 
     run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
     assert_success
-    assert_output ""
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    [ -z "$calls" ]
+    echo "$output" | grep -q "match=dropped"
 }
 
-@test "notify: silently no-ops when AGENT_NOTIFY_DISCORD_WEBHOOK is unset" {
+@test "notify: does not send when AGENT_NOTIFY_DISCORD_WEBHOOK is unset (logs match=dropped)" {
     unset AGENT_NOTIFY_DISCORD_WEBHOOK
+    create_mock "curl" ""
     _source_notify
 
     run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
     assert_success
-    assert_output ""
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    [ -z "$calls" ]
+    echo "$output" | grep -q "match=dropped"
 }
 
 # ===================================================================
@@ -653,4 +663,332 @@ MOCK
     source "${LIB_DIR}/defaults.sh"
 
     assert_equal "$AGENT_NOTIFY_SLACK_WEBHOOK" ""
+}
+
+# ===================================================================
+# Phase 4: Per-repo channel routing — map resolver helper
+# ===================================================================
+
+@test "_notify_resolve_from_map: returns mapped value when repo matches" {
+    _source_notify
+
+    run _notify_resolve_from_map "org/repo" "org/repo=https://hook/a,other/repo=https://hook/b"
+    assert_success
+    assert_output "https://hook/a"
+}
+
+@test "_notify_resolve_from_map: returns empty string for explicit mute" {
+    _source_notify
+
+    run _notify_resolve_from_map "org/muted" "org/muted=,org/other=https://hook/a"
+    assert_success
+    assert_output ""
+}
+
+@test "_notify_resolve_from_map: returns non-zero when repo not in map" {
+    _source_notify
+
+    run _notify_resolve_from_map "missing/repo" "org/a=x,org/b=y"
+    assert_failure
+}
+
+@test "_notify_resolve_from_map: returns non-zero when map is empty" {
+    _source_notify
+
+    run _notify_resolve_from_map "any/repo" ""
+    assert_failure
+}
+
+@test "_notify_resolve_from_map: trims whitespace around entries" {
+    _source_notify
+
+    run _notify_resolve_from_map "org/repo" " org/repo = https://hook/a , other/repo = https://hook/b "
+    assert_success
+    assert_output "https://hook/a"
+}
+
+@test "_notify_resolve_from_map: splits on first '=' only (URL-like values)" {
+    _source_notify
+
+    run _notify_resolve_from_map "org/repo" "org/repo=https://hook?a=b&c=d"
+    assert_success
+    assert_output "https://hook?a=b&c=d"
+}
+
+@test "_notify_resolve_from_map: skips malformed entries" {
+    _source_notify
+
+    run _notify_resolve_from_map "org/repo" "bad_entry,=orphan,org/repo=good"
+    assert_success
+    assert_output "good"
+}
+
+# ===================================================================
+# Phase 4: Per-repo webhook routing (Discord)
+# ===================================================================
+
+@test "notify webhook: uses mapped URL when repo matches map" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/default/token"
+    export AGENT_NOTIFY_DISCORD_WEBHOOK_MAP="test-org/test-repo=https://discord.com/api/webhooks/mapped/token"
+    export AGENT_NOTIFY_BACKEND="webhook"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    echo "$calls" | grep -q "webhooks/mapped/token"
+    ! echo "$calls" | grep -q "webhooks/default/token"
+}
+
+@test "notify webhook: falls back to default URL when repo not in map" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/default/token"
+    export AGENT_NOTIFY_DISCORD_WEBHOOK_MAP="other-org/other-repo=https://discord.com/api/webhooks/mapped/token"
+    export AGENT_NOTIFY_BACKEND="webhook"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    echo "$calls" | grep -q "webhooks/default/token"
+    ! echo "$calls" | grep -q "webhooks/mapped/token"
+}
+
+@test "notify webhook: skips silently when repo has empty value (mute)" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/default/token"
+    export AGENT_NOTIFY_DISCORD_WEBHOOK_MAP="test-org/test-repo="
+    export AGENT_NOTIFY_BACKEND="webhook"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    [ -z "$calls" ] || ! echo "$calls" | grep -q "discord.com"
+}
+
+@test "notify webhook: skips silently when no map and no default" {
+    unset AGENT_NOTIFY_DISCORD_WEBHOOK
+    unset AGENT_NOTIFY_DISCORD_WEBHOOK_MAP
+    export AGENT_NOTIFY_BACKEND="webhook"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    [ -z "$calls" ]
+}
+
+@test "notify webhook: appends thread_id to mapped URL" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/default/token"
+    export AGENT_NOTIFY_DISCORD_WEBHOOK_MAP="test-org/test-repo=https://discord.com/api/webhooks/mapped/token"
+    export AGENT_NOTIFY_DISCORD_THREAD_ID="987654321"
+    export AGENT_NOTIFY_BACKEND="webhook"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    echo "$calls" | grep -q "webhooks/mapped/token?thread_id=987654321"
+}
+
+@test "notify webhook: emits logfmt INFO log with match=direct" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/default/token"
+    export AGENT_NOTIFY_DISCORD_WEBHOOK_MAP="test-org/test-repo=https://discord.com/api/webhooks/mapped/token"
+    export AGENT_NOTIFY_BACKEND="webhook"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    echo "$output" | grep -q "match=direct"
+    echo "$output" | grep -q "repo=test-org/test-repo"
+}
+
+@test "notify webhook: emits logfmt INFO log with match=fallback" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/default/token"
+    export AGENT_NOTIFY_DISCORD_WEBHOOK_MAP="other-org/other-repo=https://discord.com/api/webhooks/mapped/token"
+    export AGENT_NOTIFY_BACKEND="webhook"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    echo "$output" | grep -q "match=fallback"
+}
+
+@test "notify webhook: emits logfmt INFO log with match=muted" {
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/default/token"
+    export AGENT_NOTIFY_DISCORD_WEBHOOK_MAP="test-org/test-repo="
+    export AGENT_NOTIFY_BACKEND="webhook"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    echo "$output" | grep -q "match=muted"
+}
+
+# ===================================================================
+# Phase 4: Per-repo webhook routing (Slack fallback)
+# ===================================================================
+
+@test "notify slack: bot-to-webhook fallback uses mapped Slack URL" {
+    export AGENT_NOTIFY_SLACK_WEBHOOK="https://hooks.slack.com/services/default"
+    export AGENT_NOTIFY_SLACK_WEBHOOK_MAP="test-org/test-repo=https://hooks.slack.com/services/mapped"
+    export AGENT_NOTIFY_BACKEND="slack"
+    export AGENT_SLACK_BOT_PORT="8676"
+    export AGENT_NOTIFY_LEVEL="all"
+    _source_notify
+
+    local mock_bin="${TEST_TEMP_DIR}/bin"
+    mkdir -p "$mock_bin"
+    cat > "${mock_bin}/curl" << 'MOCK'
+#!/bin/bash
+echo "$@" >> "${TEST_TEMP_DIR}/mock_calls_curl"
+if echo "$@" | grep -q "127.0.0.1"; then
+    exit 1
+fi
+exit 0
+MOCK
+    chmod +x "${mock_bin}/curl"
+    export PATH="${mock_bin}:${PATH}"
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    echo "$calls" | grep -q "hooks.slack.com/services/mapped"
+    ! echo "$calls" | grep -q "hooks.slack.com/services/default"
+}
+
+@test "notify slack: bot-to-webhook fallback mutes on empty value" {
+    export AGENT_NOTIFY_SLACK_WEBHOOK="https://hooks.slack.com/services/default"
+    export AGENT_NOTIFY_SLACK_WEBHOOK_MAP="test-org/test-repo="
+    export AGENT_NOTIFY_BACKEND="slack"
+    export AGENT_SLACK_BOT_PORT="8676"
+    export AGENT_NOTIFY_LEVEL="all"
+    _source_notify
+
+    local mock_bin="${TEST_TEMP_DIR}/bin"
+    mkdir -p "$mock_bin"
+    cat > "${mock_bin}/curl" << 'MOCK'
+#!/bin/bash
+echo "$@" >> "${TEST_TEMP_DIR}/mock_calls_curl"
+if echo "$@" | grep -q "127.0.0.1"; then
+    exit 1
+fi
+exit 0
+MOCK
+    chmod +x "${mock_bin}/curl"
+    export PATH="${mock_bin}:${PATH}"
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    ! echo "$calls" | grep -q "hooks.slack.com"
+}
+
+@test "defaults: AGENT_DISCORD_CHANNEL_MAP defaults to empty" {
+    export AGENT_BOT_USER="test-bot"
+    unset AGENT_DISCORD_CHANNEL_MAP
+
+    source "${LIB_DIR}/defaults.sh"
+
+    assert_equal "$AGENT_DISCORD_CHANNEL_MAP" ""
+}
+
+@test "defaults: AGENT_SLACK_CHANNEL_MAP defaults to empty" {
+    export AGENT_BOT_USER="test-bot"
+    unset AGENT_SLACK_CHANNEL_MAP
+
+    source "${LIB_DIR}/defaults.sh"
+
+    assert_equal "$AGENT_SLACK_CHANNEL_MAP" ""
+}
+
+@test "defaults: AGENT_NOTIFY_DISCORD_WEBHOOK_MAP defaults to empty" {
+    export AGENT_BOT_USER="test-bot"
+    unset AGENT_NOTIFY_DISCORD_WEBHOOK_MAP
+
+    source "${LIB_DIR}/defaults.sh"
+
+    assert_equal "$AGENT_NOTIFY_DISCORD_WEBHOOK_MAP" ""
+}
+
+@test "defaults: AGENT_NOTIFY_SLACK_WEBHOOK_MAP defaults to empty" {
+    export AGENT_BOT_USER="test-bot"
+    unset AGENT_NOTIFY_SLACK_WEBHOOK_MAP
+
+    source "${LIB_DIR}/defaults.sh"
+
+    assert_equal "$AGENT_NOTIFY_SLACK_WEBHOOK_MAP" ""
+}
+
+@test "defaults: config.env overrides AGENT_DISCORD_CHANNEL_MAP" {
+    cat > "${MOCK_CONFIG_DIR}/config.env" << 'EOF'
+AGENT_BOT_USER="custom-bot"
+AGENT_DISCORD_CHANNEL_MAP="org/a=111,org/b=222"
+EOF
+
+    source "${MOCK_CONFIG_DIR}/config.env"
+    source "${LIB_DIR}/defaults.sh"
+
+    assert_equal "$AGENT_DISCORD_CHANNEL_MAP" "org/a=111,org/b=222"
+}
+
+@test "notify slack: bot-to-webhook fallback falls back to default when repo not mapped" {
+    export AGENT_NOTIFY_SLACK_WEBHOOK="https://hooks.slack.com/services/default"
+    export AGENT_NOTIFY_SLACK_WEBHOOK_MAP="other/repo=https://hooks.slack.com/services/mapped"
+    export AGENT_NOTIFY_BACKEND="slack"
+    export AGENT_SLACK_BOT_PORT="8676"
+    export AGENT_NOTIFY_LEVEL="all"
+    _source_notify
+
+    local mock_bin="${TEST_TEMP_DIR}/bin"
+    mkdir -p "$mock_bin"
+    cat > "${mock_bin}/curl" << 'MOCK'
+#!/bin/bash
+echo "$@" >> "${TEST_TEMP_DIR}/mock_calls_curl"
+if echo "$@" | grep -q "127.0.0.1"; then
+    exit 1
+fi
+exit 0
+MOCK
+    chmod +x "${mock_bin}/curl"
+    export PATH="${mock_bin}:${PATH}"
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    echo "$calls" | grep -q "hooks.slack.com/services/default"
 }

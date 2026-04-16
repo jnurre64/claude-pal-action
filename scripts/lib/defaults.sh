@@ -119,5 +119,13 @@ AGENT_SLACK_ALLOWED_GROUP="${AGENT_SLACK_ALLOWED_GROUP:-}"
 AGENT_SLACK_BOT_PORT="${AGENT_SLACK_BOT_PORT:-8676}"
 AGENT_NOTIFY_SLACK_WEBHOOK="${AGENT_NOTIFY_SLACK_WEBHOOK:-}"
 
+# ─── Per-repo channel routing (Phase 4) ──────────────────────────
+# Format: owner/repo=channel-or-url,owner/repo=channel-or-url
+# Empty value = explicit mute for that repo.
+AGENT_DISCORD_CHANNEL_MAP="${AGENT_DISCORD_CHANNEL_MAP:-}"
+AGENT_SLACK_CHANNEL_MAP="${AGENT_SLACK_CHANNEL_MAP:-}"
+AGENT_NOTIFY_DISCORD_WEBHOOK_MAP="${AGENT_NOTIFY_DISCORD_WEBHOOK_MAP:-}"
+AGENT_NOTIFY_SLACK_WEBHOOK_MAP="${AGENT_NOTIFY_SLACK_WEBHOOK_MAP:-}"
+
 # ─── Paths ───────────────────────────────────────────────────────
 AGENT_LOG_DIR="${AGENT_LOG_DIR:-$HOME/.claude/agent-logs}"
