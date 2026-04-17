@@ -107,7 +107,9 @@ AGENT_DISCORD_GUILD_ID="${AGENT_DISCORD_GUILD_ID:-}"
 AGENT_DISCORD_ALLOWED_USERS="${AGENT_DISCORD_ALLOWED_USERS:-}"
 AGENT_DISCORD_ALLOWED_ROLE="${AGENT_DISCORD_ALLOWED_ROLE:-}"
 AGENT_DISCORD_BOT_PORT="${AGENT_DISCORD_BOT_PORT:-8675}"
-AGENT_NOTIFY_BACKEND="${AGENT_NOTIFY_BACKEND:-webhook}"
+# Notification backend(s). Comma-separated, e.g. "bot,slack". Empty = notifications disabled.
+# Supported tokens: webhook, bot, slack. Each repo opts into backends explicitly.
+AGENT_NOTIFY_BACKEND="${AGENT_NOTIFY_BACKEND:-}"
 AGENT_DISPATCH_REPO="${AGENT_DISPATCH_REPO:-}"
 
 # ─── Slack Bot (Phase 3 — interactive notifications) ─────────────────────────

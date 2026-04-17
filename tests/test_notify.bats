@@ -12,6 +12,7 @@ _source_notify() {
 # ===================================================================
 
 @test "notify: does not send when AGENT_NOTIFY_DISCORD_WEBHOOK is empty (logs match=dropped)" {
+    export AGENT_NOTIFY_BACKEND="webhook"
     export AGENT_NOTIFY_DISCORD_WEBHOOK=""
     create_mock "curl" ""
     _source_notify
@@ -26,6 +27,7 @@ _source_notify() {
 }
 
 @test "notify: does not send when AGENT_NOTIFY_DISCORD_WEBHOOK is unset (logs match=dropped)" {
+    export AGENT_NOTIFY_BACKEND="webhook"
     unset AGENT_NOTIFY_DISCORD_WEBHOOK
     create_mock "curl" ""
     _source_notify
@@ -37,6 +39,43 @@ _source_notify() {
     calls=$(get_mock_calls "curl")
     [ -z "$calls" ]
     echo "$output" | grep -q "match=dropped"
+}
+
+# ─── REGRESSION issue-53: empty AGENT_NOTIFY_BACKEND is a clean no-op ──────
+# Previously the default was "webhook"; with an empty default, notify() must
+# early-return without emitting a bogus "unknown backend" warning.
+
+@test "REGRESSION issue-53: empty AGENT_NOTIFY_BACKEND is a clean no-op (no warning, no curl)" {
+    export AGENT_NOTIFY_BACKEND=""
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    [ -z "$calls" ]
+    ! echo "$output" | grep -q "unknown notification backend"
+    ! echo "$output" | grep -q "match="
+}
+
+@test "REGRESSION issue-53: unset AGENT_NOTIFY_BACKEND is a clean no-op (default changed to empty)" {
+    unset AGENT_NOTIFY_BACKEND
+    export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
+    export AGENT_NOTIFY_LEVEL="all"
+    create_mock "curl" ""
+    _source_notify
+
+    run notify "plan_posted" "Test Issue" "https://github.com/test/1" "Plan summary"
+    assert_success
+
+    local calls
+    calls=$(get_mock_calls "curl")
+    [ -z "$calls" ]
+    ! echo "$output" | grep -q "unknown notification backend"
 }
 
 # ===================================================================
@@ -236,6 +275,7 @@ _source_notify() {
 # ===================================================================
 
 @test "notify send: calls curl with correct webhook URL" {
+    export AGENT_NOTIFY_BACKEND="webhook"
     export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
     export AGENT_NOTIFY_LEVEL="all"
     create_mock "curl" ""
@@ -250,6 +290,7 @@ _source_notify() {
 }
 
 @test "notify send: includes Content-Type header" {
+    export AGENT_NOTIFY_BACKEND="webhook"
     export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
     export AGENT_NOTIFY_LEVEL="all"
     create_mock "curl" ""
@@ -264,6 +305,7 @@ _source_notify() {
 }
 
 @test "notify send: includes thread_id when configured" {
+    export AGENT_NOTIFY_BACKEND="webhook"
     export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
     export AGENT_NOTIFY_DISCORD_THREAD_ID="987654321"
     export AGENT_NOTIFY_LEVEL="all"
@@ -279,6 +321,7 @@ _source_notify() {
 }
 
 @test "notify send: does not include thread_id when not configured" {
+    export AGENT_NOTIFY_BACKEND="webhook"
     export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
     export AGENT_NOTIFY_DISCORD_THREAD_ID=""
     export AGENT_NOTIFY_LEVEL="all"
@@ -294,6 +337,7 @@ _source_notify() {
 }
 
 @test "notify send: does not fail when curl fails" {
+    export AGENT_NOTIFY_BACKEND="webhook"
     export AGENT_NOTIFY_DISCORD_WEBHOOK="https://discord.com/api/webhooks/123/abc"
     export AGENT_NOTIFY_LEVEL="all"
     create_mock "curl" "error" 1
@@ -384,13 +428,13 @@ EOF
     assert_equal "$AGENT_DISCORD_BOT_PORT" "8675"
 }
 
-@test "defaults: AGENT_NOTIFY_BACKEND defaults to webhook" {
+@test "REGRESSION issue-53: AGENT_NOTIFY_BACKEND defaults to empty" {
     export AGENT_BOT_USER="test-bot"
     unset AGENT_NOTIFY_BACKEND
 
     source "${LIB_DIR}/defaults.sh"
 
-    assert_equal "$AGENT_NOTIFY_BACKEND" "webhook"
+    assert_equal "$AGENT_NOTIFY_BACKEND" ""
 }
 
 # ===================================================================

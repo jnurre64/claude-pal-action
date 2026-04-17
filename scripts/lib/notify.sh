@@ -313,8 +313,13 @@ notify() {
     # Check notification level filter
     _notify_should_send "$event_type" || return 0
 
+    # Empty backend = notifications disabled; exit before parsing/logging.
+    local backend_list="${AGENT_NOTIFY_BACKEND:-}"
+    if [ -z "$backend_list" ]; then
+        return 0
+    fi
+
     # Parse comma-separated backends
-    local backend_list="${AGENT_NOTIFY_BACKEND:-webhook}"
     local backends
     IFS=',' read -ra backends <<< "$backend_list"
 

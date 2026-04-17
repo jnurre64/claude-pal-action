@@ -182,6 +182,18 @@ Four optional env vars, one per backend:
 | `AGENT_NOTIFY_DISCORD_WEBHOOK_MAP` | Discord webhook URL routing |
 | `AGENT_NOTIFY_SLACK_WEBHOOK_MAP` | Slack webhook URL routing |
 
+> **Required backend tokens.** Each map is only consulted when its backend is active. `AGENT_NOTIFY_BACKEND` must contain the matching token for notifications to reach that platform — configuring a map alone is not enough.
+>
+> | Desired delivery | Required `AGENT_NOTIFY_BACKEND` tokens |
+> |---|---|
+> | Discord bot only | `bot` |
+> | Slack bot only | `slack` |
+> | Discord + Slack bots | `bot,slack` |
+> | Discord webhook only | `webhook` |
+> | Discord webhook + Slack bot | `webhook,slack` |
+>
+> Symptom of a missing token: the relevant `*_CHANNEL_MAP` / `*_WEBHOOK_MAP` is set but no notifications appear on that platform, and no log line for that platform is emitted.
+
 **Format:** single line, comma-separated entries, `=` separates key from value:
 
 ```bash
