@@ -32,7 +32,7 @@ Clone or fetch the upstream repo to a temporary location:
 
 ```bash
 UPSTREAM_DIR=$(mktemp -d)
-git clone --depth=1 https://github.com/jnurre64/claude-agent-dispatch.git "$UPSTREAM_DIR"
+git clone --depth=1 https://github.com/jnurre64/claude-pal-action.git "$UPSTREAM_DIR"
 ```
 
 Read the latest commit SHA:
@@ -161,7 +161,7 @@ Tell the user:
 ```yaml
 # Upstream tracking for standalone agent-dispatch installation
 # Do not edit manually — managed by /update skill and setup.sh
-repo: https://github.com/jnurre64/claude-agent-dispatch.git
+repo: https://github.com/jnurre64/claude-pal-action.git
 version: abc123def456  # commit SHA of last sync
 synced_at: "2026-03-21T01:00:00Z"
 checksums:

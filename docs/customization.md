@@ -1,6 +1,6 @@
 # Customization Guide
 
-This document covers how to tailor claude-agent-dispatch for your specific project: custom prompts, extra tools, test gates, shared memory, and project conventions.
+This document covers how to tailor claude-pal-action for your specific project: custom prompts, extra tools, test gates, shared memory, and project conventions.
 
 ## Customizing Prompts
 

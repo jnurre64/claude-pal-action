@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing to claude-agent-dispatch!
+Thanks for your interest in contributing to claude-pal-action!
 
 ## How to Contribute
 

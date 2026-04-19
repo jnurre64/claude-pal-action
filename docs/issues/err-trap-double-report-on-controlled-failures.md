@@ -1,6 +1,6 @@
 # ERR trap double-reports on controlled handler failures
 
-> **Status:** Draft — fixed by `fix/err-trap-guards-clean-failures`. File as issue on `jnurre64/claude-agent-dispatch` and link the PR if you want to track the finding.
+> **Status:** Draft — fixed by `fix/err-trap-guards-clean-failures`. File as issue on `jnurre64/claude-pal-action` and link the PR if you want to track the finding.
 
 ## Summary
 

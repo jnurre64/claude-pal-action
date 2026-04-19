@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# ─── Check prerequisites for claude-agent-dispatch ───────────────
+# ─── Check prerequisites for claude-pal-action ───────────────
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -12,7 +12,7 @@ REQUIRED_TOOLS=("gh" "claude" "git" "jq" "curl")
 MISSING=()
 WARNINGS=()
 
-echo "Checking prerequisites for claude-agent-dispatch..."
+echo "Checking prerequisites for claude-pal-action..."
 echo ""
 
 for tool in "${REQUIRED_TOOLS[@]}"; do

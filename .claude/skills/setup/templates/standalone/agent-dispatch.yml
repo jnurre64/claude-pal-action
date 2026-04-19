@@ -5,7 +5,7 @@ on:
     types: [agent-triage, agent-implement, agent-reply]
 
 concurrency:
-  group: claude-agent-dispatch-${{ github.event.client_payload.issue_number }}
+  group: claude-pal-action-${{ github.event.client_payload.issue_number }}
   cancel-in-progress: false
 
 jobs:

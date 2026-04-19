@@ -1,1 +1,1 @@
-"""Shared logic for claude-agent-dispatch notification bots."""
+"""Shared logic for claude-pal-action notification bots."""

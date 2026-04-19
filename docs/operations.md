@@ -215,7 +215,7 @@ git -C ~/repos/default/my-repo worktree prune
 
 ### Reference Mode
 
-If your project calls the reusable workflows from this repository, you are already in reference mode. The dispatch scripts live in the `claude-agent-dispatch` repository and your project references them via `workflow_call`.
+If your project calls the reusable workflows from this repository, you are already in reference mode. The dispatch scripts live in the `claude-pal-action` repository and your project references them via `workflow_call`.
 
 To update, pull the latest changes on the runner machine:
 
@@ -231,13 +231,13 @@ Or, if you cloned the repository to a different path, pull there. The `dispatch_
 You can pin to a specific tag or commit in your calling workflow to avoid unexpected changes:
 
 ```yaml
-uses: your-org/claude-agent-dispatch/.github/workflows/dispatch-triage.yml@v1.0.0
+uses: your-org/claude-pal-action/.github/workflows/dispatch-triage.yml@v1.0.0
 ```
 
 Or pin to a commit SHA:
 
 ```yaml
-uses: your-org/claude-agent-dispatch/.github/workflows/dispatch-triage.yml@abc1234
+uses: your-org/claude-pal-action/.github/workflows/dispatch-triage.yml@abc1234
 ```
 
 This ensures the dispatch scripts and prompts do not change until you explicitly update the reference.
@@ -248,8 +248,8 @@ If you copied the dispatch scripts into your own repository, you manage updates 
 
 ```bash
 # In your copy of the scripts
-diff -r scripts/ /path/to/claude-agent-dispatch/scripts/
-diff -r prompts/ /path/to/claude-agent-dispatch/prompts/
+diff -r scripts/ /path/to/claude-pal-action/scripts/
+diff -r prompts/ /path/to/claude-pal-action/prompts/
 ```
 
 ---

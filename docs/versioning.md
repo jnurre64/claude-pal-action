@@ -30,7 +30,7 @@ Internal implementation details (function names, log format, file paths within s
 Users reference this project in workflow files via major version tags:
 
 ```yaml
-uses: jnurre64/claude-agent-dispatch/.github/workflows/dispatch-triage.yml@v1
+uses: jnurre64/claude-pal-action/.github/workflows/dispatch-triage.yml@v1
 ```
 
 The `v1` tag is a mutable pointer that always tracks the latest `v1.x.y` release. After tagging a new release:

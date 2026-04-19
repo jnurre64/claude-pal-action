@@ -51,7 +51,7 @@ Optional Discord notifications for agent dispatch milestones. When configured, t
 - The webhook URL is stored in `config.env` which is not committed to git
 - Notifications are sent via HTTPS to Discord's API
 - No user data is collected or stored
-- All notifications include an "Automated by claude-agent-dispatch" footer
+- All notifications include an "Automated by claude-pal-action" footer
 
 ## Phase 2: Interactive Bot
 

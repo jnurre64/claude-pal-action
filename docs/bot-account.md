@@ -1,6 +1,6 @@
 # Bot Account Setup
 
-This guide covers creating and configuring a dedicated GitHub account for the claude-agent-dispatch agent, including PAT creation, permissions, and rotation.
+This guide covers creating and configuring a dedicated GitHub account for the claude-pal-action agent, including PAT creation, permissions, and rotation.
 
 ---
 
