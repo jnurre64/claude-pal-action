@@ -10,6 +10,8 @@
 
 A reusable dispatch system for running [Claude Code](https://claude.com/claude-code) agents on GitHub issues — autonomously triaging, planning, implementing, and addressing PR review feedback, all orchestrated through GitHub Actions and a label-driven state machine.
 
+> **Independent, community-built project.** Not affiliated with, endorsed by, or sponsored by Anthropic, PBC. "Claude" and "Claude Code" are trademarks of Anthropic; this project uses Claude Code as its underlying agent and references these trademarks solely to describe that functionality.
+
 ## Features
 
 - **No third-party platform layers** — runs on the official Claude Code CLI and GitHub Actions, with no additional SaaS dependencies on top. Authentication uses either your Pro/Max subscription (individual use) or an Anthropic API key (required for team/commercial use) — see [authentication.md](docs/authentication.md).
@@ -174,10 +176,6 @@ claude-pal-action/
 ├── CLAUDE.md                    # Claude Code instructions for this repo
 └── docs/                        # Full documentation
 ```
-
-## Disclaimer
-
-Claude Pal Action is an independent, community-built open-source project. It is not affiliated with, endorsed by, or sponsored by Anthropic, PBC. "Claude" and "Claude Code" are trademarks of Anthropic. This project uses Claude Code as its underlying agent and references these trademarks solely to describe that functionality.
 
 ## License
 
