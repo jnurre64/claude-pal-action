@@ -4,6 +4,9 @@ config.env
 # Local Claude Code permissions (per-developer allow-list)
 .claude/settings.local.json
 
+# direnv — per-developer local environment (e.g., GH_TOKEN sourcing)
+.envrc
+
 # Generated workflows (from setup.sh)
 generated-workflows/
 

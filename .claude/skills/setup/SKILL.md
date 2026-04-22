@@ -228,48 +228,11 @@ Since this requires a token the user must paste, tell them to run the command th
 
 ### Step 9d: Configure credentials
 
-Claude Code authentication uses one of two environment variables, set in the runner's `.env` file (not `~/.bashrc` — systemd services do not source shell profiles). Before proceeding, ask the user which auth path applies to their situation:
+The Claude Code CLI needs to be authenticated on the runner. The dispatch scripts do not prescribe a method — point the user to Anthropic's [Claude Code authentication docs](https://code.claude.com/docs/en/authentication) for the available options, or [authentication.md](../../../docs/authentication.md) for the project's summary and Terms-of-Service pointers.
 
-1. **Team, shared-runner, commercial, or Agent SDK use** → `ANTHROPIC_API_KEY` (Console API key, required)
-2. **Individual solo-developer use on your own repo** → either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`
-3. **Not sure / want to read first** → point the user to [docs/authentication.md](../../../docs/authentication.md)
+If the user chose a method that uses environment variables, the runner's `.env` file (in the runner installation directory, not `~/.bashrc` — systemd services do not source shell profiles) is the right place to set them. Any `.env` holding credentials must be `chmod 600`.
 
-Get their choice, then apply one of the two branches below. **Never configure both** — `ANTHROPIC_API_KEY` silently overrides `CLAUDE_CODE_OAUTH_TOKEN` in Claude Code's precedence order.
-
-**Branch A: Console API key**
-
-```bash
-echo 'ANTHROPIC_API_KEY=sk-ant-api...' >> .env
-chmod 600 .env
-```
-
-Tell the user to paste their actual key. Remind them:
-- The `.env` file must be `chmod 600` (only the runner user can read it)
-- Every workflow job on this runner can access the key
-- Rotate the key every 90 days
-
-**Branch B: Subscription OAuth token**
-
-Before reaching this step, the user needs to generate a token on a machine where they've logged into Claude Code. Tell them to run (on that machine, not necessarily the runner):
-
-```bash
-claude setup-token
-```
-
-This prints a token beginning `sk-ant-oat01-...`. Have them copy it, then on the runner:
-
-```bash
-echo 'CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...' >> .env
-chmod 600 .env
-```
-
-Remind them:
-- The `.env` file must be `chmod 600` (only the runner user can read it)
-- The token is backed by their Pro/Max/Team/Enterprise subscription and expires after ~1 year
-- Regenerate before expiry; if their subscription lapses, dispatch runs will fail with auth errors
-- This path is for **individual solo-developer use only** — see [authentication.md](../../../docs/authentication.md) for the full ToS guardrails
-
-**Verification (both branches):** After the runner service is restarted in Step 9f, have the user run `claude /status` on the runner (as the runner user, with `.env` sourced). It should report the auth method they configured.
+**Verification:** After the runner service is restarted in Step 9f, have the user run `claude /status` on the runner (as the runner user). It should report that the runner is authenticated with the expected account.
 
 **Node/Claude path** — If using nvm, the `claude` binary won't be in PATH for systemd services. Add the path to `.env`:
 

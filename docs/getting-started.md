@@ -12,7 +12,7 @@ Before you begin, make sure you have the following:
 |-------------|-----|
 | A GitHub repository you want the agent to work on | The "target repo" |
 | A machine to run a self-hosted GitHub Actions runner | Linux recommended (Ubuntu 22.04+); can be a home server, VM, or cloud instance |
-| An Anthropic API key with access to Claude | Powers the `claude` CLI |
+| Claude Code CLI authenticated on the runner | Powers the `claude` CLI — see [authentication.md](authentication.md) |
 | GitHub CLI (`gh`) installed on the runner | Used for label management, issue/PR operations |
 | `git`, `jq`, and `curl` installed on the runner | Core dependencies of the dispatch scripts |
 
@@ -85,30 +85,16 @@ Install the Claude CLI on the runner machine:
 npm install -g @anthropic-ai/claude-code
 ```
 
-Configure Claude Code authentication on the runner. Choose one of two paths — see [authentication.md](authentication.md) for the decision matrix and Terms of Service boundaries. In brief: use `ANTHROPIC_API_KEY` for team, shared-runner, or commercial deployments; use `CLAUDE_CODE_OAUTH_TOKEN` only for individual solo-developer use on your own repo.
+Authenticate the Claude Code CLI on the runner. The dispatch scripts do not prescribe a method — see Anthropic's [Claude Code authentication docs](https://code.claude.com/docs/en/authentication) for the supported options, or [authentication.md](authentication.md) for the project's summary and the Terms-of-Service pointers.
 
-Add exactly one of these to the runner's `.env` file (in the runner installation directory — not `~/.bashrc`; systemd services do not source shell profiles):
-
-```bash
-# Option A: Console API key
-echo 'ANTHROPIC_API_KEY=sk-ant-api...' >> .env
-
-# Option B: Subscription OAuth token
-# Generate on a machine where you've logged in: `claude setup-token`
-echo 'CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...' >> .env
-
-chmod 600 .env
-```
-
-> **Warning.** Never set both. `ANTHROPIC_API_KEY` silently overrides `CLAUDE_CODE_OAUTH_TOKEN` in Claude Code's resolution order. Verify the active path with `claude /status` after restarting the runner service.
-
-If you run the runner as a systemd service (the usual case), restart it so the new `.env` values are picked up:
+After authenticating, verify with `claude /status` on the runner. If your method uses environment variables set in the runner's `.env` file, restart the runner service so workflow jobs pick them up:
 
 ```bash
 sudo systemctl restart actions.runner.<org>-<repo>.<runner-name>.service
 ```
 
-Verify the CLI works:
+Verify the CLI is installed:
+
 ```bash
 claude --version
 ```

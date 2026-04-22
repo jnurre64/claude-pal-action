@@ -14,7 +14,7 @@ A reusable dispatch system for running [Claude Code](https://claude.com/claude-c
 
 ## Features
 
-- **No third-party platform layers** — runs on the official Claude Code CLI and GitHub Actions, with no additional SaaS dependencies on top. Authentication uses either your Pro/Max subscription (individual use) or an Anthropic API key (required for team/commercial use) — see [authentication.md](docs/authentication.md).
+- **No third-party platform layers** — runs on the official Claude Code CLI and GitHub Actions, with no additional SaaS dependencies on top. Authenticate Claude Code on the runner however fits your use — the dispatch scripts do not prescribe a method; see [authentication.md](docs/authentication.md).
 - **Low complexity, fast setup** — a small dependency chain (shell scripts, GitHub Actions, Claude Code CLI). Configure and deploy in about 5 minutes with the `/setup` skill.
 - **Two-phase human approval** — the agent writes a plan and waits for your approval before writing any code. You stay in control of what gets built.
 - **Async by default** — label an issue before bed, wake up to a plan awaiting approval. Brainstorm a new issue while the agent works on an existing one.
@@ -61,7 +61,7 @@ Built-in protections at every layer: circuit breaker (8 bot comments/hour), phas
 - A GitHub repository you want to add agent capabilities to
 - A self-hosted GitHub Actions runner with:
   - [Claude Code CLI](https://claude.com/claude-code) installed
-  - Claude Code authentication configured — either `ANTHROPIC_API_KEY` (Console API key) or `CLAUDE_CODE_OAUTH_TOKEN` (OAuth token from `claude setup-token`); see [authentication.md](docs/authentication.md) for which applies to your use
+  - Claude Code CLI authenticated on the runner — see [authentication.md](docs/authentication.md)
   - `gh` CLI authenticated, `git`, `jq`, `curl`
 - A dedicated [bot GitHub account](docs/bot-account.md) with a fine-grained PAT
 
@@ -123,7 +123,7 @@ The system adapts to any project through your CLAUDE.md (coding conventions), cu
 | Doc | Description |
 |-----|-------------|
 | [Getting Started](docs/getting-started.md) | Full walkthrough from zero to working agent |
-| [Authentication](docs/authentication.md) | Choosing between API key and OAuth token; ToS boundaries |
+| [Authentication](docs/authentication.md) | Runner authentication prerequisite and pointers to Anthropic's docs |
 | [Architecture](docs/architecture.md) | How the dispatch system works |
 | [Design Philosophy](docs/design-philosophy.md) | Design principles, target use cases, and workflow guidance |
 | [FAQ](docs/faq.md) | Common questions about safety, privacy, costs, and usage |
