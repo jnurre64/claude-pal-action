@@ -6,7 +6,7 @@ Claude Agent Dispatch is an issue-to-PR orchestrator built on GitHub Actions and
 
 ### Minimal Dependencies
 
-The system runs on two things you likely already have: a GitHub repository and a Claude Code CLI installation. There are no third-party platform subscriptions or external SaaS services to configure on top — authentication uses your existing Anthropic credentials, either a Pro/Max subscription (for individual use) or a Console API key (required for team/commercial use). See [authentication.md](authentication.md) for which applies. The dependency chain is deliberately small — shell scripts, GitHub Actions, and the Claude Code CLI.
+The system runs on two things you likely already have: a GitHub repository and a Claude Code CLI installation. There are no third-party platform subscriptions or external SaaS services to configure on top — Claude Code must be authenticated on the runner, but the dispatch scripts do not prescribe a method (see [authentication.md](authentication.md)). The dependency chain is deliberately small — shell scripts, GitHub Actions, and the Claude Code CLI.
 
 ### Human Oversight at Key Decision Points
 

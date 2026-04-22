@@ -12,7 +12,7 @@ Before you begin, make sure you have the following:
 |-------------|-----|
 | A GitHub repository you want the agent to work on | The "target repo" |
 | A machine to run a self-hosted GitHub Actions runner | Linux recommended (Ubuntu 22.04+); can be a home server, VM, or cloud instance |
-| An Anthropic API key with access to Claude | Powers the `claude` CLI |
+| Claude Code CLI authenticated on the runner | Powers the `claude` CLI — see [authentication.md](authentication.md) |
 | GitHub CLI (`gh`) installed on the runner | Used for label management, issue/PR operations |
 | `git`, `jq`, and `curl` installed on the runner | Core dependencies of the dispatch scripts |
 

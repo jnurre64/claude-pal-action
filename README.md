@@ -123,7 +123,7 @@ The system adapts to any project through your CLAUDE.md (coding conventions), cu
 | Doc | Description |
 |-----|-------------|
 | [Getting Started](docs/getting-started.md) | Full walkthrough from zero to working agent |
-| [Authentication](docs/authentication.md) | Choosing between API key and OAuth token; ToS boundaries |
+| [Authentication](docs/authentication.md) | Runner authentication prerequisite and pointers to Anthropic's docs |
 | [Architecture](docs/architecture.md) | How the dispatch system works |
 | [Design Philosophy](docs/design-philosophy.md) | Design principles, target use cases, and workflow guidance |
 | [FAQ](docs/faq.md) | Common questions about safety, privacy, costs, and usage |
