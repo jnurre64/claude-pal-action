@@ -214,16 +214,17 @@ fi
 mkdir -p "$WORKFLOWS_DIR"
 
 # Check for existing workflow files that would be overwritten
+WORKFLOW_PREFIX="agent"
 CONFLICTS=()
 for template in "$TEMPLATES_DIR"/*.yml; do
     filename=$(basename "$template")
-    output_name="${filename/caller-/agent-}"
+    base_name="${filename#caller-}"
+    base_name="${base_name#sandbox-pal-}"
+    output_name="${WORKFLOW_PREFIX}-${base_name}"
     if [ -f "$WORKFLOWS_DIR/$output_name" ]; then
         CONFLICTS+=("$output_name")
     fi
 done
-
-WORKFLOW_PREFIX="agent"
 
 if [ ${#CONFLICTS[@]} -gt 0 ]; then
     echo -e "  ${YELLOW}!${NC} These workflow files already exist:"

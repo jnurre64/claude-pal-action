@@ -8,7 +8,7 @@ The `/update` skill should detect new standalone workflow templates from upstrea
 
 ## Problem
 
-When a new feature adds a new GitHub Actions workflow (e.g., `sandbox-pal-direct-implement.yml` added a corresponding `sandbox-pal-direct-implement.yml` standalone template), the update skill successfully syncs all scripts, prompts, and labels — but the user has to manually create the calling workflow in `.github/workflows/`.
+When a new feature adds a new GitHub Actions workflow and a corresponding standalone template (e.g., `sandbox-pal-direct-implement.yml`), the update skill successfully syncs all scripts, prompts, and labels — but the user has to manually create the calling workflow in `.github/workflows/`.
 
 **What happened during the `agent:implement` rollout to Webber:**
 
