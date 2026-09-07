@@ -85,3 +85,7 @@ Open an issue with:
 ## Questions?
 
 Open a discussion or issue — happy to help.
+
+Worker-result and schema tests require Python 3 with the dependencies in
+`scripts/requirements-worker.txt`. Install them in your development environment
+before running `bash scripts/check-test-prereqs.sh` and the BATS suite.

@@ -6,6 +6,11 @@ load 'helpers/test_helper'
 # Helper to source review-gates.sh (requires common.sh first;
 # liveness.sh provides set_heartbeat, a no-op without a held lock)
 _source_review_gates() {
+    local phase setting
+    for phase in ADVERSARIAL_PLAN POST_IMPL_REVIEW POST_IMPL_RETRY; do
+        setting="AGENT_JSON_SCHEMA_${phase}"
+        export "${setting}=${!setting-}"
+    done
     source "${LIB_DIR}/common.sh"
     source "${LIB_DIR}/liveness.sh"
     source "${LIB_DIR}/review-gates.sh"
@@ -32,7 +37,7 @@ _source_review_gates() {
     _source_review_gates
 
     # Mock run_claude to return approved
-    run_claude() {
+    engine_claude() {
         echo '{"result":"{\"action\": \"approved\"}"}'
     }
 
@@ -47,7 +52,7 @@ _source_review_gates() {
     _source_review_gates
 
     # Mock run_claude to return corrected
-    run_claude() {
+    engine_claude() {
         echo '{"result":"{\"action\": \"corrected\", \"corrections\": [\"Fixed metric\"], \"revised_plan\": \"Corrected plan\"}"}'
     }
 
@@ -61,7 +66,7 @@ _source_review_gates() {
     create_mock "gh" ""
     _source_review_gates
 
-    run_claude() {
+    engine_claude() {
         echo '{"result":"{\"action\": \"corrected\", \"corrections\": [\"Fixed metric\"], \"revised_plan\": \"Corrected plan\"}"}'
     }
 
@@ -77,7 +82,7 @@ _source_review_gates() {
     create_mock "gh" ""
     _source_review_gates
 
-    run_claude() {
+    engine_claude() {
         echo '{"result":"{\"action\": \"needs_clarification\", \"questions\": [\"What does X mean?\"]}"}'
     }
 
@@ -91,7 +96,7 @@ _source_review_gates() {
     create_mock "gh" ""
     _source_review_gates
 
-    run_claude() {
+    engine_claude() {
         echo '{"result":"{\"action\": \"needs_clarification\", \"questions\": [\"What does X mean?\"]}"}'
     }
 
@@ -107,7 +112,7 @@ _source_review_gates() {
     create_mock "gh" ""
     _source_review_gates
 
-    run_claude() {
+    engine_claude() {
         echo '{"result":"not valid json at all"}'
     }
 
@@ -128,7 +133,7 @@ _source_review_gates() {
     create_mock "gh" ""
     _source_review_gates
     _ledger_init
-    run_claude() { echo '{"is_error":true,"subtype":"success"}'; }
+    engine_claude() { echo '{"is_error":true,"subtype":"success"}'; }
 
     run run_post_impl_review
     assert_failure
@@ -143,7 +148,7 @@ _source_review_gates() {
     create_mock "gh" ""
     _source_review_gates
     _ledger_init
-    run_claude() { echo '{"is_error":true,"subtype":"success"}'; }
+    engine_claude() { echo '{"is_error":true,"subtype":"success"}'; }
 
     run run_post_impl_retry_session "Read,Edit"
     assert_failure
@@ -211,7 +216,7 @@ _source_review_gates() {
     export WORKTREE_DIR="$TEST_TEMP_DIR"
     _source_review_gates
     _ledger_init
-    run_claude() { echo '{"result":"{\"action\": \"approved\", \"verified_fixed\": [], \"findings\": []}"}'; }
+    engine_claude() { echo '{"result":"{\"action\": \"approved\", \"verified_fixed\": [], \"findings\": []}"}'; }
     run_post_impl_review
     [ "$(printf '%s' "$POST_IMPL_REVIEW_JSON" | jq -r '.action')" = "approved" ]
 }
@@ -221,7 +226,7 @@ _source_review_gates() {
     export WORKTREE_DIR="$TEST_TEMP_DIR"
     _source_review_gates
     _ledger_init
-    run_claude() { echo '{"result":"{\"action\": \"concerns\", \"findings\": [{\"severity\": \"blocking\", \"description\": \"weak test\"}]}"}'; }
+    engine_claude() { echo '{"result":"{\"action\": \"concerns\", \"findings\": [{\"severity\": \"blocking\", \"description\": \"weak test\"}]}"}'; }
     run_post_impl_review
     [ "$(printf '%s' "$POST_IMPL_REVIEW_JSON" | jq -r '.findings[0].severity')" = "blocking" ]
 }
@@ -232,7 +237,7 @@ _source_review_gates() {
     _source_review_gates
     _ledger_init
     _ledger_merge_review '{"findings":[{"severity":"blocking","description":"seed"}]}'
-    run_claude() { echo "{\"result\":\"{\\\"action\\\": \\\"approved\\\", \\\"echo_ledger\\\": $(echo "$AGENT_REVIEW_LEDGER" | jq -c '.cycles')}\"}"; }
+    engine_claude() { echo "{\"result\":\"{\\\"action\\\": \\\"approved\\\", \\\"echo_ledger\\\": $(echo "$AGENT_REVIEW_LEDGER" | jq -c '.cycles')}\"}"; }
     run_post_impl_review
     [ "$(printf '%s' "$POST_IMPL_REVIEW_JSON" | jq -r '.echo_ledger')" = "1" ]
 }
@@ -247,7 +252,7 @@ _source_review_gates() {
     export WORKTREE_DIR="$TEST_TEMP_DIR"
     _source_review_gates
     _ledger_init
-    run_claude() { echo '{"result":"{\"action\": \"concerns\", \"concerns\": [\"legacy concern one\", \"legacy concern two\"]}"}'; }
+    engine_claude() { echo '{"result":"{\"action\": \"concerns\", \"concerns\": [\"legacy concern one\", \"legacy concern two\"]}"}'; }
     run_post_impl_review
     [ "$(printf '%s' "$POST_IMPL_REVIEW_JSON" | jq -r '.findings | length')" = "2" ]
     [ "$(printf '%s' "$POST_IMPL_REVIEW_JSON" | jq -r '.findings[0].severity')" = "blocking" ]
@@ -261,7 +266,7 @@ _source_review_gates() {
     create_mock "gh" ""
     _source_review_gates
     _ledger_init
-    run_claude() { echo '{"result":"I could not decide"}'; }
+    engine_claude() { echo '{"result":"I could not decide"}'; }
     run run_post_impl_review
     assert_failure
 }
@@ -280,7 +285,7 @@ _setup_loop_worktree() {
 
 @test "review loop: clean first pass returns 0" {
     _setup_loop_worktree
-    run_claude() { echo '{"result":"{\"action\": \"approved\", \"verified_fixed\": [], \"reopened\": [], \"findings\": []}"}'; }
+    engine_claude() { echo '{"result":"{\"action\": \"approved\", \"verified_fixed\": [], \"reopened\": [], \"findings\": []}"}'; }
     run run_post_impl_review_loop "Read,Edit"
     assert_success
 }
@@ -290,7 +295,7 @@ _setup_loop_worktree() {
     export AGENT_POST_IMPL_REVIEW_MAX_RETRIES=3
     LOOP_CALL_FILE="${TEST_TEMP_DIR}/calls"
     echo 0 > "$LOOP_CALL_FILE"
-    run_claude() {
+    engine_claude() {
         local n; n=$(cat "$LOOP_CALL_FILE"); echo $((n + 1)) > "$LOOP_CALL_FILE"
         case "$n" in
             0) echo '{"result":"{\"action\": \"concerns\", \"verified_fixed\": [], \"reopened\": [], \"findings\": [{\"severity\": \"blocking\", \"description\": \"gap\"}]}"}' ;;
@@ -309,7 +314,7 @@ _setup_loop_worktree() {
     export AGENT_POST_IMPL_REVIEW_MAX_RETRIES=3
     LOOP_CALL_FILE="${TEST_TEMP_DIR}/calls"
     echo 0 > "$LOOP_CALL_FILE"
-    run_claude() {
+    engine_claude() {
         local n; n=$(cat "$LOOP_CALL_FILE"); echo $((n + 1)) > "$LOOP_CALL_FILE"
         case "$n" in
             0) echo '{"result":"{\"action\": \"concerns\", \"verified_fixed\": [], \"reopened\": [], \"findings\": [{\"severity\": \"blocking\", \"description\": \"gap\"}]}"}' ;;
@@ -328,7 +333,7 @@ _setup_loop_worktree() {
     export AGENT_POST_IMPL_REVIEW_MAX_RETRIES=1
     LOOP_CALL_FILE="${TEST_TEMP_DIR}/calls"
     echo 0 > "$LOOP_CALL_FILE"
-    run_claude() {
+    engine_claude() {
         local n; n=$(cat "$LOOP_CALL_FILE"); echo $((n + 1)) > "$LOOP_CALL_FILE"
         case "$n" in
             1) echo '{"result":"{\"action\": \"addressed\", \"dispositions\": []}"}' ;;
@@ -349,7 +354,7 @@ _setup_loop_worktree() {
     # once retries reach the invalid-value fallback of 3.
     _setup_loop_worktree
     export AGENT_POST_IMPL_REVIEW_MAX_RETRIES="abc"
-    run_claude() {
+    engine_claude() {
         if [[ "$*" == *"post-impl-retry"* ]]; then :; fi
         echo '{"result":"{\"action\": \"concerns\", \"verified_fixed\": [], \"reopened\": [], \"findings\": [{\"severity\": \"blocking\", \"description\": \"still broken '"$RANDOM"'\"}]}"}'
     }
@@ -361,7 +366,7 @@ _setup_loop_worktree() {
 @test "review loop: MAX_RETRIES=0 returns 2 on first concerns (no retry session)" {
     _setup_loop_worktree
     export AGENT_POST_IMPL_REVIEW_MAX_RETRIES=0
-    run_claude() { echo '{"result":"{\"action\": \"concerns\", \"verified_fixed\": [], \"reopened\": [], \"findings\": [{\"severity\": \"blocking\", \"description\": \"gap\"}]}"}'; }
+    engine_claude() { echo '{"result":"{\"action\": \"concerns\", \"verified_fixed\": [], \"reopened\": [], \"findings\": [{\"severity\": \"blocking\", \"description\": \"gap\"}]}"}'; }
     run run_post_impl_review_loop "Read,Edit"
     [ "$status" -eq 2 ]
 }
@@ -369,14 +374,14 @@ _setup_loop_worktree() {
 @test "review loop: parse failure returns 1" {
     _setup_loop_worktree
     create_mock "gh" ""
-    run_claude() { echo '{"result":"garbage"}'; }
+    engine_claude() { echo '{"result":"garbage"}'; }
     run run_post_impl_review_loop "Read,Edit"
     [ "$status" -eq 1 ]
 }
 
 @test "review loop: ledger is committed on the branch" {
     _setup_loop_worktree
-    run_claude() { echo '{"result":"{\"action\": \"approved\", \"verified_fixed\": [], \"reopened\": [], \"findings\": []}"}'; }
+    engine_claude() { echo '{"result":"{\"action\": \"approved\", \"verified_fixed\": [], \"reopened\": [], \"findings\": []}"}'; }
     run_post_impl_review_loop "Read,Edit"
     run git -C "$WORKTREE_DIR" log --format='%s' -1
     assert_output --partial "review ledger"
@@ -412,7 +417,7 @@ _setup_loop_worktree() {
     create_mock "gh" ""
     _source_review_gates
 
-    run_claude() {
+    engine_claude() {
         echo '{"result":"{\"action\": \"corrected\", \"corrections\": [\"Changed metric A to metric B\"], \"revised_plan\": \"Plan with correct metric B\"}"}'
     }
 
@@ -447,7 +452,7 @@ _setup_loop_worktree() {
 
     # Claude ignored "JSON only" and narrated its verification before the JSON.
     # This is the exact failure shape seen on Webber issue #59.
-    run_claude() {
+    engine_claude() {
         echo '{"result":"I verified all claims.\n\n**Verified:**\n- Line 302 confirmed\n- Line 3732 confirmed\n\n**No issues found.**\n\n{\"action\": \"approved\"}"}'
     }
 
@@ -460,7 +465,7 @@ _setup_loop_worktree() {
     export AGENT_PLAN_CONTENT="Test plan"
     _source_review_gates
 
-    run_claude() {
+    engine_claude() {
         echo '{"result":"```json\n{\"action\": \"approved\"}\n```"}'
     }
 
@@ -473,7 +478,7 @@ _setup_loop_worktree() {
     export AGENT_PLAN_CONTENT="Test plan"
     _source_review_gates
 
-    run_claude() {
+    engine_claude() {
         echo '{"result":"{\"action\": \"approved\"}\n\nLet me know if you need anything else."}'
     }
 
@@ -488,7 +493,7 @@ _setup_loop_worktree() {
 
     # Claude might show an example object earlier in the narrative, then
     # the real answer at the end. The last top-level {...} wins.
-    run_claude() {
+    engine_claude() {
         echo '{"result":"For example, a flagging response might look like {\"action\": \"needs_clarification\"}. But here my decision is:\n\n{\"action\": \"approved\"}"}'
     }
 
@@ -502,7 +507,7 @@ _setup_loop_worktree() {
     create_mock "gh" ""
     _source_review_gates
 
-    run_claude() {
+    engine_claude() {
         echo '{"result":"After reviewing, I found the plan used the wrong metric.\n\n{\"action\": \"corrected\", \"corrections\": [\"Changed metric A to metric B\"], \"revised_plan\": \"Plan using metric B\"}"}'
     }
 
@@ -516,7 +521,7 @@ _setup_loop_worktree() {
     _source_review_gates
     _ledger_init
 
-    run_claude() {
+    engine_claude() {
         echo '{"result":"I reviewed the diff. Here are my findings:\n\n{\"action\": \"concerns\", \"findings\": [{\"severity\": \"blocking\", \"description\": \"Tests use simplified topology\"}, {\"severity\": \"blocking\", \"description\": \"Missing edge case for empty queue\"}]}"}'
     }
 
@@ -532,7 +537,7 @@ _setup_loop_worktree() {
     _source_review_gates
 
     # No JSON at all — should still hit the unparseable path and fail
-    run_claude() {
+    engine_claude() {
         echo '{"result":"I cannot complete this review. No JSON output here."}'
     }
 
@@ -667,7 +672,7 @@ _setup_ledger() {
     _source_review_gates
     _ledger_init
     _ledger_merge_review '{"findings":[{"severity":"blocking","description":"a"}]}'
-    run_claude() { echo '{"result":"{\"action\": \"addressed\", \"dispositions\": [{\"id\": \"F1\", \"status\": \"fixed\", \"note\": \"added test\"}]}"}'; }
+    engine_claude() { echo '{"result":"{\"action\": \"addressed\", \"dispositions\": [{\"id\": \"F1\", \"status\": \"fixed\", \"note\": \"added test\"}]}"}'; }
     run_post_impl_retry_session "Read,Edit"
     [ "$(printf '%s' "$RETRY_DISPOSITIONS_JSON" | jq -r '.[0].id')" = "F1" ]
 }
@@ -676,7 +681,7 @@ _setup_ledger() {
     export WORKTREE_DIR="$TEST_TEMP_DIR"
     _source_review_gates
     _ledger_init
-    run_claude() { echo '{"result":"I did some fixes"}'; }
+    engine_claude() { echo '{"result":"I did some fixes"}'; }
     run_post_impl_retry_session "Read,Edit"
     assert_equal "$RETRY_DISPOSITIONS_JSON" "[]"
 }
@@ -687,7 +692,7 @@ _setup_ledger() {
     create_mock "gh" ""
     _source_review_gates
     _ledger_init
-    run_claude() { echo '{"result":"{\"action\": \"addressed\", \"dispositions\": []}"}'; }
+    engine_claude() { echo '{"result":"{\"action\": \"addressed\", \"dispositions\": []}"}'; }
     run run_post_impl_retry_session "Read,Edit"
     assert_failure
 }
@@ -697,7 +702,7 @@ _setup_ledger() {
     _source_review_gates
     _ledger_init
     _ledger_merge_review '{"findings":[{"severity":"blocking","description":"needs coverage"},{"severity":"non-blocking","description":"nit"}]}'
-    run_claude() { echo "{\"result\":\"{\\\"action\\\": \\\"addressed\\\", \\\"dispositions\\\": []}\"}"; }
+    engine_claude() { echo "{\"result\":\"{\\\"action\\\": \\\"addressed\\\", \\\"dispositions\\\": []}\"}"; }
     run_post_impl_retry_session "Read,Edit"
     [[ "$AGENT_REVIEW_CONCERNS" == *"needs coverage"* ]]
     [[ "$AGENT_REVIEW_CONCERNS" != *"nit"* ]]
@@ -731,7 +736,7 @@ _setup_test_gate() {
 @test "test gate: passing tests return 0 with no fix session" {
     _setup_test_gate
     export AGENT_TEST_COMMAND="true"
-    run_claude() { echo "session" >> "${TEST_TEMP_DIR}/claude_calls"; echo '{"result":"x"}'; }
+    engine_claude() { echo "session" >> "${TEST_TEMP_DIR}/claude_calls"; echo '{"result":"x"}'; }
     run run_test_gate "Read,Edit" "Test issue"
     assert_success
     [ ! -f "${TEST_TEMP_DIR}/claude_calls" ]
@@ -740,7 +745,7 @@ _setup_test_gate() {
 @test "REGRESSION issue-73: fix session that heals the suite returns 0" {
     _setup_test_gate
     export AGENT_TEST_COMMAND="test -f fixed.txt"
-    run_claude() {
+    engine_claude() {
         echo "session" >> "${TEST_TEMP_DIR}/claude_calls"
         (cd "$WORKTREE_DIR" && echo ok > fixed.txt && git add fixed.txt && git commit -qm "fix(tests): create fixed.txt")
         echo '{"result":"fixed the suite"}'
@@ -753,7 +758,7 @@ _setup_test_gate() {
 @test "REGRESSION issue-73: no-commit fix session breaks the loop early" {
     _setup_test_gate
     export AGENT_TEST_COMMAND="false"
-    run_claude() { echo "session" >> "${TEST_TEMP_DIR}/claude_calls"; echo '{"result":"cannot fix: broken config"}'; }
+    engine_claude() { echo "session" >> "${TEST_TEMP_DIR}/claude_calls"; echo '{"result":"cannot fix: broken config"}'; }
     run run_test_gate "Read,Edit" "Test issue"
     assert_failure
     # cap is 2 but only ONE session ran — no commits means no point retrying
@@ -764,7 +769,7 @@ _setup_test_gate() {
 @test "REGRESSION issue-73: cap reached after max fix sessions with commits" {
     _setup_test_gate
     export AGENT_TEST_COMMAND="false"
-    run_claude() {
+    engine_claude() {
         echo "session" >> "${TEST_TEMP_DIR}/claude_calls"
         (cd "$WORKTREE_DIR" && echo fix >> churn.txt && git add churn.txt && git commit -qm "fix(tests): attempt")
         echo '{"result":"tried a fix"}'
@@ -778,7 +783,7 @@ _setup_test_gate() {
     _setup_test_gate
     export AGENT_TEST_GATE_MAX_RETRIES="0"
     export AGENT_TEST_COMMAND="false"
-    run_claude() { echo "session" >> "${TEST_TEMP_DIR}/claude_calls"; echo '{"result":"x"}'; }
+    engine_claude() { echo "session" >> "${TEST_TEMP_DIR}/claude_calls"; echo '{"result":"x"}'; }
     run run_test_gate "Read,Edit" "Test issue"
     assert_failure
     [ ! -f "${TEST_TEMP_DIR}/claude_calls" ]
@@ -819,7 +824,7 @@ _setup_test_gate() {
     _setup_test_gate
     export AGENT_POST_IMPL_REVIEW="true"
     _ledger_init
-    run_claude() { echo '{"result":"not valid json at all"}'; }
+    engine_claude() { echo '{"result":"not valid json at all"}'; }
     run run_post_impl_review
     assert_failure
     [ -f "${TEST_TEMP_DIR}/preserve_calls" ]
@@ -832,7 +837,7 @@ _setup_test_gate() {
     _setup_test_gate
     export AGENT_TEST_COMMAND="false"
     _ledger_init
-    run_claude() { echo '{"result":"{\"action\": \"addressed\", \"dispositions\": []}"}'; }
+    engine_claude() { echo '{"result":"{\"action\": \"addressed\", \"dispositions\": []}"}'; }
     run run_post_impl_retry_session "Read,Edit"
     assert_failure
     [ -f "${TEST_TEMP_DIR}/preserve_calls" ]

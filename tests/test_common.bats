@@ -340,7 +340,7 @@ MOCK
 }
 
 @test "dispatch: implement handler classifies the envelope before the post-implementation gates" {
-    grep -q "classify_claude_result" "${SCRIPTS_DIR}/sandbox-pal-dispatch.sh"
+    grep -q "classify_agent_result" "${SCRIPTS_DIR}/sandbox-pal-dispatch.sh"
 }
 
 # ═══════════════════════════════════════════════════════════════

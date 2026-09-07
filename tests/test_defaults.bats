@@ -207,21 +207,21 @@ EOF
 
 @test "dispatch script: handle_direct_implement uses validate prompt" {
     local handler_section
-    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/sandbox-pal-dispatch.sh" | head -80)
+    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/sandbox-pal-dispatch.sh")
 
     echo "$handler_section" | grep -q 'AGENT_PROMPT_VALIDATE'
 }
 
 @test "dispatch script: handle_direct_implement posts comment with direct-implement marker on failure" {
     local handler_section
-    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/sandbox-pal-dispatch.sh" | head -80)
+    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/sandbox-pal-dispatch.sh")
 
     echo "$handler_section" | grep -q 'agent-direct-implement'
 }
 
 @test "dispatch script: handle_direct_implement calls handle_implement on success" {
     local handler_section
-    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/sandbox-pal-dispatch.sh" | head -80)
+    handler_section=$(sed -n '/^handle_direct_implement/,/^handle_/p' "${SCRIPTS_DIR}/sandbox-pal-dispatch.sh")
 
     echo "$handler_section" | grep -q 'handle_implement'
 }
@@ -390,7 +390,7 @@ EOF
 
     local review_line impl_line
     review_line=$(echo "$implement_section" | grep -n 'run_adversarial_plan_review' | head -1 | cut -d: -f1)
-    impl_line=$(echo "$implement_section" | grep -n 'run_claude.*prompt.*impl_tools' | head -1 | cut -d: -f1)
+    impl_line=$(echo "$implement_section" | grep -n 'run_agent.*prompt.*impl_tools' | head -1 | cut -d: -f1)
 
     [ "$review_line" -lt "$impl_line" ]
 }

@@ -192,11 +192,15 @@ handle_new_issue() {
 
     local result
     set_heartbeat "triage"
-    result=$(run_claude "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_TRIAGE" "$AGENT_JSON_SCHEMA_TRIAGE" "TRIAGE")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_TRIAGE" "$AGENT_JSON_SCHEMA_TRIAGE" "TRIAGE")
     log_permission_denials "$result" "triage"
+    if ! require_agent_success "$result" "triage"; then
+        cleanup_worktree
+        return
+    fi
 
     local claude_output
-    claude_output=$(parse_claude_output "$result")
+    claude_output=$(parse_agent_output "$result")
     log "Triage result: $claude_output"
 
     # Parse the action
@@ -341,10 +345,14 @@ handle_issue_reply() {
 
     local result
     set_heartbeat "reply"
-    result=$(run_claude "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_TRIAGE" "$AGENT_JSON_SCHEMA_REPLY" "REPLY")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_TRIAGE" "$AGENT_JSON_SCHEMA_REPLY" "REPLY")
     log_permission_denials "$result" "reply"
+    if ! require_agent_success "$result" "reply"; then
+        cleanup_worktree
+        return
+    fi
     local claude_output
-    claude_output=$(parse_claude_output "$result")
+    claude_output=$(parse_agent_output "$result")
 
     local triage_json action
     set +e
@@ -491,26 +499,28 @@ handle_implement() {
 
     local result
     set_heartbeat "implement"
-    result=$(run_claude "$prompt" "$impl_tools" "$AGENT_MODEL_IMPLEMENT" "" "IMPLEMENT")
+    result=$(run_agent "$prompt" "$impl_tools" "$AGENT_MODEL_IMPLEMENT" "" "IMPLEMENT")
     log_permission_denials "$result" "implement"
 
     log "Raw claude output length: ${#result}"
     local claude_output
-    claude_output=$(parse_claude_output "$result")
+    claude_output=$(parse_agent_output "$result")
     log "Implementation output: ${claude_output:0:500}"
 
-    # An API error is fail-fast: no later phase can recover it, so stop
-    # here instead of burning the test gate and review loop on it.
-    if [ "$(classify_claude_result "$result")" = "fail_fast" ]; then
-        log "Implementation phase: API error (fail-fast) — skipping gates"
+    # Interrupted useful work can recover only through passing tests and a
+    # fresh independent review. Disabled gates cannot turn failure into success.
+    if [ "$(classify_agent_result "$result")" = "fail_fast" ] || {
+        ! agent_succeeded "$result" && { [ -z "$AGENT_TEST_COMMAND" ] || [ "$AGENT_POST_IMPL_REVIEW" != "true" ]; }
+    }; then
+        log "Implementation phase: worker failure (fail-fast) — skipping gates"
         preserve_branch || true
         set_label "agent:failed"
         gh issue comment "$NUMBER" --repo "$REPO" \
             --body "## Agent Implementation Failed
 
-The implementation session hit an API error: ${claude_output}
+The implementation session failed: ${claude_output}
 
-No later phase can recover this — re-dispatch (re-apply the trigger label) once the API issue is resolved. Any commits made before the error are pushed to the \`${BRANCH_NAME}\` branch.
+Re-dispatch (re-apply the trigger label) after resolving the failure. Recoverable interrupted work requires both tests and post-implementation review to be enabled. Any commits made before the error are pushed to the \`${BRANCH_NAME}\` branch.
 $(denials_report_section)" 2>/dev/null || true
         cleanup_worktree
         return
@@ -577,11 +587,15 @@ handle_direct_implement() {
 
     local result
     set_heartbeat "validate"
-    result=$(run_claude "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_TRIAGE" "$AGENT_JSON_SCHEMA_VALIDATE" "VALIDATE")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_TRIAGE" "$AGENT_JSON_SCHEMA_VALIDATE" "VALIDATE")
     log_permission_denials "$result" "validate"
+    if ! require_agent_success "$result" "validate"; then
+        cleanup_worktree
+        return
+    fi
 
     local claude_output
-    claude_output=$(parse_claude_output "$result")
+    claude_output=$(parse_agent_output "$result")
     log "Validation result: $claude_output"
 
     # Parse the action
@@ -747,12 +761,17 @@ handle_pr_review() {
 
     local result
     set_heartbeat "pr-review"
-    result=$(run_claude "$prompt" "$pr_tools" "$AGENT_MODEL_REVIEW" "" "REVIEW")
+    result=$(run_agent "$prompt" "$pr_tools" "$AGENT_MODEL_REVIEW" "" "REVIEW")
     log_permission_denials "$result" "pr-review"
+    if ! NUMBER="$issue_num" require_agent_success "$result" "pr-review"; then
+        preserve_branch || true
+        cleanup_worktree
+        return
+    fi
 
     log "PR review raw output length: ${#result}"
     local claude_output
-    claude_output=$(parse_claude_output "$result")
+    claude_output=$(parse_agent_output "$result")
     log "PR review output: ${claude_output:0:500}"
 
     apply_rules_files
@@ -877,10 +896,15 @@ handle_post_merge() {
 
     local result
     set_heartbeat "cleanup"
-    result=$(run_claude "$prompt" "$AGENT_ALLOWED_TOOLS_CLEANUP" "$AGENT_MODEL_CLEANUP" "$AGENT_JSON_SCHEMA_CLEANUP" "CLEANUP")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_CLEANUP" "$AGENT_MODEL_CLEANUP" "$AGENT_JSON_SCHEMA_CLEANUP" "CLEANUP")
     log_permission_denials "$result" "cleanup"
+    if ! require_agent_success "$result" "cleanup"; then
+        preserve_branch || true
+        cleanup_worktree
+        return
+    fi
     local claude_output
-    claude_output=$(parse_claude_output "$result")
+    claude_output=$(parse_agent_output "$result")
     log "Cleanup output: ${claude_output:0:500}"
 
     apply_rules_files

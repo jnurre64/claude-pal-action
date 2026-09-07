@@ -167,11 +167,14 @@ run_adversarial_plan_review() {
 
     local result
     set_heartbeat "adversarial-plan"
-    result=$(run_claude "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_ADVERSARIAL_PLAN" "$AGENT_JSON_SCHEMA_ADVERSARIAL_PLAN" "ADVERSARIAL_PLAN")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_ADVERSARIAL_PLAN" "$AGENT_JSON_SCHEMA_ADVERSARIAL_PLAN" "ADVERSARIAL_PLAN")
     log_permission_denials "$result" "adversarial-plan"
+    if ! require_agent_success "$result" "adversarial-plan"; then
+        return 1
+    fi
 
     local claude_output
-    claude_output=$(parse_claude_output "$result")
+    claude_output=$(parse_agent_output "$result")
     log "Adversarial review result: ${claude_output:0:500}"
 
     # claude_output may be a bare JSON object, a JSON object with narrative
@@ -307,9 +310,13 @@ run_test_gate() {
         local prompt result
         prompt=$(load_prompt "test-fix" "${AGENT_PROMPT_TEST_FIX}")
         set_heartbeat "test-fix-${attempt}"
-        result=$(run_claude "$prompt" "$impl_tools" "$AGENT_MODEL_TEST_FIX" "" "TEST_FIX")
+        result=$(run_agent "$prompt" "$impl_tools" "$AGENT_MODEL_TEST_FIX" "" "TEST_FIX")
         log_permission_denials "$result" "test-fix"
-        log "Test-fix session output: $(parse_claude_output "$result" | head -c 300)"
+        log "Test-fix session output: $(parse_agent_output "$result" | head -c 300)"
+        if [ "$(classify_agent_result "$result")" = "fail_fast" ]; then
+            stop_reason="test-fix worker failed: $(parse_agent_output "$result")"
+            break
+        fi
 
         local after_sha
         after_sha=$(git -C "$WORKTREE_DIR" rev-parse HEAD 2>/dev/null || echo "")
@@ -362,19 +369,19 @@ run_post_impl_review() {
 
     local result
     set_heartbeat "post-impl-review"
-    result=$(run_claude "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_POST_IMPL_REVIEW" "$AGENT_JSON_SCHEMA_POST_IMPL_REVIEW" "POST_IMPL_REVIEW")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_POST_IMPL_REVIEW" "$AGENT_JSON_SCHEMA_POST_IMPL_REVIEW" "POST_IMPL_REVIEW")
     log_permission_denials "$result" "post-impl-review"
 
     local claude_output
-    claude_output=$(parse_claude_output "$result")
+    claude_output=$(parse_agent_output "$result")
     log "Post-impl review result: ${claude_output:0:500}"
 
-    if [ "$(classify_claude_result "$result")" = "fail_fast" ]; then
-        log "Post-implementation review: API error (fail-fast)"
+    if ! agent_succeeded "$result"; then
+        log "Post-implementation review: worker failure"
         preserve_branch || true
         set_label "agent:failed"
         gh issue comment "$NUMBER" --repo "$REPO" \
-            --body "Agent post-implementation review hit an API error (${claude_output}). No later phase can recover this — re-dispatch once the API issue is resolved. The implementation commits are pushed to the \`${BRANCH_NAME}\` branch." 2>/dev/null || true
+            --body "Agent post-implementation review failed (${claude_output}). Re-dispatch after resolving the reported failure. The implementation commits are pushed to the \`${BRANCH_NAME}\` branch." 2>/dev/null || true
         return 1
     fi
 
@@ -444,19 +451,19 @@ run_post_impl_retry_session() {
 
     local result
     set_heartbeat "post-impl-retry"
-    result=$(run_claude "$prompt" "$impl_tools" "$AGENT_MODEL_POST_IMPL_RETRY" "$AGENT_JSON_SCHEMA_POST_IMPL_RETRY" "POST_IMPL_RETRY")
+    result=$(run_agent "$prompt" "$impl_tools" "$AGENT_MODEL_POST_IMPL_RETRY" "$AGENT_JSON_SCHEMA_POST_IMPL_RETRY" "POST_IMPL_RETRY")
     log_permission_denials "$result" "post-impl-retry"
 
     local claude_output
-    claude_output=$(parse_claude_output "$result")
+    claude_output=$(parse_agent_output "$result")
     log "Retry output: ${claude_output:0:500}"
 
-    if [ "$(classify_claude_result "$result")" = "fail_fast" ]; then
-        log "Review-loop retry session: API error (fail-fast)"
+    if ! agent_succeeded "$result"; then
+        log "Review-loop retry session: worker failure"
         preserve_branch || true
         set_label "agent:failed"
         gh issue comment "$NUMBER" --repo "$REPO" \
-            --body "Agent review-loop retry session hit an API error (${claude_output}). No later phase can recover this — re-dispatch once the API issue is resolved. The work so far is pushed to the \`${BRANCH_NAME}\` branch." 2>/dev/null || true
+            --body "Agent review-loop retry session failed (${claude_output}). Re-dispatch after resolving the reported failure. The work so far is pushed to the \`${BRANCH_NAME}\` branch." 2>/dev/null || true
         return 1
     fi
 

@@ -54,7 +54,7 @@ MOCK
     ! grep -q -- "--json-schema" "${TEST_TEMP_DIR}/claude_args"
 }
 
-@test "run_claude: missing schema file is skipped with a warning, not a failure" {
+@test "REGRESSION v1.2.0: configured missing schema fails before calling Claude" {
     _source_common
     export WORKTREE_DIR="$TEST_TEMP_DIR"
     mkdir -p "${TEST_TEMP_DIR}/bin"
@@ -67,8 +67,9 @@ MOCK
     export PATH="${TEST_TEMP_DIR}/bin:${PATH}"
 
     run run_claude "prompt" "" "" "${TEST_TEMP_DIR}/does-not-exist.json"
-    assert_output --partial '"result":"ok"'
-    ! grep -q -- "--json-schema" "${TEST_TEMP_DIR}/claude_args"
+    assert_output --partial '"status":"failed"'
+    assert_output --partial '"kind":"configuration"'
+    [ ! -f "${TEST_TEMP_DIR}/claude_args" ]
 }
 
 @test "get_structured_output: returns the compact validated object from the envelope" {

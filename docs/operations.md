@@ -2,6 +2,45 @@
 
 This document covers day-to-day operations: monitoring, retrying failed issues, understanding label transitions, circuit breaker recovery, worktree management, and updates.
 
+## Worker validation dependency
+
+The harness requires Python 3 and `jsonschema>=4.18,<5`. Install these on the
+runner before dispatching (use a virtual environment and put its `bin` directory
+on the runner's PATH):
+
+```bash
+python3 -m pip install -r scripts/requirements-worker.txt
+bash scripts/check-prereqs.sh
+```
+
+For a standalone installation, the requirements file is under
+`.sandbox-pal-dispatch/scripts/`. Setup and update deliver the validator and its
+requirements through the shared asset inventory; they do not install Python
+packages automatically. CI installs the same requirements before BATS.
+
+Every worker invocation returns one internal version-1 envelope with engine,
+phase, process exit code, semantic status, error kind, text, structured output,
+schema status, denials, usage and cost. Unavailable telemetry is `null` (denial
+availability has a separate boolean). A zero exit code with semantic failure
+stops decision phases. The final public orchestrator result still uses `outcome`
+and `exit_code`; callers must inspect both.
+
+Configured schemas now fail closed: missing/invalid schemas prevent the phase
+from starting, and missing/invalid structured output fails the phase. Relative
+schema paths resolve against the configuration directory. The validator checks
+the selected JSON Schema draft and constraints, including nested references
+within the same document. External references and unknown drafts are rejected;
+`format` remains an annotation. To retain legacy text parsing for a custom
+prompt, explicitly set that phase's `AGENT_JSON_SCHEMA_<PHASE>=""`.
+
+Authentication, quota, configuration, schema and unclassified failures stop
+recovery. Rate limits, turn/budget caps and timeouts remain recoverable during
+implementation, but require both a configured test command and independent
+post-implementation review. Reviews never approve from partial failed output.
+Worker cancellation is reported separately and stops advancement. This adapter
+retains the existing Claude timeout process handling; stronger process-tree
+supervision and Codex permission isolation remain rollout work.
+
 ## Monitoring
 
 ### Log Files
@@ -11,7 +50,7 @@ All logs are written to the directory specified by `AGENT_LOG_DIR` (default: `~/
 | File | Content |
 |------|---------|
 | `sandbox-pal-dispatch.log` | Main dispatch log. Appended by every run. Contains timestamped entries with event type, issue number, and status messages. |
-| `claude-stderr-<repo>-<issue>-<timestamp>.log` | Stderr output from each `claude -p` invocation. Empty on success. Contains error details on failure. |
+| `claude-stderr-<phase>-<unique-id>.log` | Stderr output from each `claude -p` invocation. Empty on success. Contains error details on failure. |
 
 ### Watching Logs in Real Time
 

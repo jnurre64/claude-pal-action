@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""Validate configured schemas and normalize a single Claude result.
+
+No remote/file schema retrieval. Diagnostics never echo response or schema data.
+"""
+import json
+import os
+import re
+import sys
+
+
+def reject_constant(value):
+    raise ValueError("Non-JSON constant")
+
+
+def loads(text):
+    return json.loads(text, parse_constant=reject_constant)
+
+
+def validator_for(schema):
+    from jsonschema.validators import validator_for as select_validator
+    from referencing import Registry
+
+    cls = select_validator(schema, default=None) if isinstance(schema, dict) and "$schema" in schema else select_validator(schema)
+    if cls is None:
+        raise ValueError("Unsupported schema draft")
+    cls.check_schema(schema)
+
+    def check_refs(value):
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key in ("$ref", "$dynamicRef", "$recursiveRef") and (not isinstance(child, str) or not child.startswith("#")):
+                    raise ValueError("Only in-document schema references are supported")
+                check_refs(child)
+        elif isinstance(value, list):
+            for child in value:
+                check_refs(child)
+
+    check_refs(schema)
+    return cls(schema, registry=Registry())
+
+
+def normalize(raw, phase, code, schema_text, stderr=""):
+    result = dict(version=1, engine="claude", phase=phase, process_exit_code=code,
+                  status="success", error=None, result_text="", structured_output=None,
+                  schema_status="not_checked" if schema_text else "disabled",
+                  permission_denials=[], denials_available=False,
+                  usage=dict(input_tokens=None, output_tokens=None, cached_input_tokens=None), cost_usd=None)
+
+    def fail(kind, message, status="failed"):
+        result.update(status=status, error=dict(kind=kind, message=message), structured_output=None)
+
+    try:
+        data = scrub(loads(raw))
+        if not isinstance(data, dict):
+            raise ValueError("Expected object")
+    except (ValueError, TypeError):
+        data = {}
+        fail("transport", "Missing or malformed worker result")
+
+    text = data.get("result", data.get("result_text", ""))
+    result["result_text"] = text if isinstance(text, str) else ""
+    denials = data.get("permission_denials")
+    if isinstance(denials, list):
+        result.update(permission_denials=denials, denials_available=True)
+    usage = data.get("usage")
+    if isinstance(usage, dict):
+        for source, target in [("input_tokens", "input_tokens"), ("output_tokens", "output_tokens"), ("cache_read_input_tokens", "cached_input_tokens")]:
+            value = usage.get(source)
+            if type(value) in (int, float) and value >= 0:
+                result["usage"][target] = value
+    cost = data.get("total_cost_usd")
+    if type(cost) in (int, float) and cost >= 0:
+        result["cost_usd"] = cost
+
+    subtype = str(data.get("subtype", ""))
+    detail = " ".join(str(data.get(key, "")) for key in ("terminal_reason", "api_error_status", "result", "errors", "error")).lower() + " " + stderr.lower()
+    semantic_error = data.get("is_error") is True or subtype.startswith("error_") or bool(data.get("error"))
+    if semantic_error or code:
+        kind, message = "unknown", "API error or worker failure"
+        if any(word in detail for word in ("unauthorized", "authentication", "invalid api key", "401", "not logged in")):
+            kind, message = "auth", "API error: authentication failed"
+        elif any(word in detail for word in ("quota", "credit balance", "billing", "session limit")):
+            kind, message = "quota", "API error: quota exhausted"
+        elif "429" in detail or "rate limit" in detail:
+            kind, message = "rate_limit", "API error: rate limited"
+        elif any(word in detail for word in ("permission denied", "not permitted", "refused")):
+            kind, message = "permission", "Worker permission refusal"
+        elif subtype in ("error_max_turns", "error_max_turns_reached", "error_max_budget_usd"):
+            kind, message = "limit", "Worker turn or budget limit reached"
+        elif code in (126, 127) or "configuration" in detail:
+            kind, message = "configuration", "Worker configuration or executable unavailable"
+        fail(kind, message)
+    elif not (isinstance(text, str) and text or "structured_output" in data or subtype == "success"):
+        fail("transport", "Missing terminal worker result")
+    if code == 124:
+        fail("transport", "Worker timed out", "timed_out")
+    elif code in (130, 143):
+        fail("transport", "Worker cancelled", "cancelled")
+
+    if result["status"] == "success":
+        if schema_text:
+            try:
+                validator = validator_for(loads(schema_text))
+                if "structured_output" not in data:
+                    raise ValueError("Missing structured result")
+                validator.validate(data["structured_output"])
+                result.update(schema_status="valid", structured_output=data["structured_output"])
+            except Exception:
+                result["schema_status"] = "invalid"
+                fail("schema", "Configured schema was not satisfied by structured output")
+        else:
+            result["structured_output"] = data.get("structured_output")
+    return result
+
+
+def scrub(value):
+    if isinstance(value, str):
+        for name, secret in os.environ.items():
+            if any(part in name for part in ("TOKEN", "SECRET", "PASSWORD", "API_KEY", "APIKEY", "CREDENTIAL")) and len(secret) >= 8:
+                value = value.replace(secret, f"[REDACTED:{name}]")
+        value = re.sub(r"github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}", "[REDACTED_TOKEN]", value)
+        value = re.sub(r"(Authorization:\s*(?:Token|Bearer|Basic)\s+)[^\s\"']+", r"\1[REDACTED]", value, flags=re.IGNORECASE)
+        return value
+    if isinstance(value, dict):
+        return {scrub(key): scrub(child) for key, child in value.items()}
+    if isinstance(value, list):
+        return [scrub(child) for child in value]
+    return value
+
+
+def main():
+    mode = sys.argv[1]
+    if mode == "check-dependency":
+        validator_for({})
+    elif mode == "check-schema":
+        with open(sys.argv[2], encoding="utf-8") as stream:
+            schema = loads(stream.read())
+        validator_for(schema)
+        print(json.dumps(schema, separators=(",", ":")))
+    elif mode == "normalize":
+        with open(sys.argv[5], encoding="utf-8", errors="replace") as stream:
+            stderr = stream.read()
+        print(json.dumps(normalize(sys.stdin.read(), sys.argv[2], int(sys.argv[3]), sys.argv[4], stderr), separators=(",", ":")))
+    else:
+        raise ValueError("Unknown operation")
+
+
+if __name__ == "__main__":
+    main()
