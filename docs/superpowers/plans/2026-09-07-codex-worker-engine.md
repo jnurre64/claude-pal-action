@@ -4,7 +4,10 @@ Status: approach approved, including per-phase engine overrides in the first rel
 Session handoff: [2026-09-07-codex-worker-engine-handoff.md](2026-09-07-codex-worker-engine-handoff.md).
 Repository initialization completed; #112 asset delivery implemented locally
 (see handoff progress); neutral Claude adapter and consumer migration implemented
-locally. Engine selection and Codex permission proof/adapter remain pending.
+locally. Engine/model resolution and reachable-phase preflight are implemented
+in commit `5b7fb8a`. Codex permission proof/adapter remain pending; the
+host sandbox startup prerequisite is resolved and 18 initial command-boundary
+probes pass; full policy/adapter verification remains pending (see handoff).
 Working branch: `feat/116-codex-worker-engine`.
 Examined 2026-09-07 at `04cef68` (the same commit cited in the issue).
 
@@ -289,8 +292,8 @@ the permission proof, and end-to-end evidence. No automatic production switch.
 The continuation implements the version-1 envelope, all phase consumers and
 schema validation. See the handoff for files and verification evidence. The
 initial neutral API retains the existing positional argument order to preserve
-local callers; production consumers use `run_agent`. There is no engine selector
-until the next milestone.
+local callers; production consumers use `run_agent`. The following configuration milestone now resolves engine/model selection;
+Codex execution still fails closed pending its permission proof.
 
 The validator is Python `jsonschema>=4.18,<5`, packaged in
 `scripts/requirements-worker.txt`. It checks configured schemas before invocation
@@ -312,9 +315,16 @@ protected capture paths still require the subsequent policy/supervision work.
 The dispatch-wide default, first-release per-phase overrides, and both
 authentication modes are confirmed. Do not re-ask these scope questions.
 
-1. Which runner/platform will host the first isolated fixture?
-2. Identify the disposable fixture repository and operator-approved spend/time
-   ceiling before running the paid, GitHub-mutating acceptance test.
+The existing Ubuntu host and its STRONGBAD/STRONGMAD/STRONGSAD runners are
+available; the standard Bubblewrap AppArmor prerequisite is installed and initial
+boundary probes pass. The operator selected `Frightful-Games/recipe-manager-demo`
+as the disposable fixture and stated the existing PAT has access. The current
+default `gh` credential context could not resolve it; verify the exact slug and
+access using the intended existing configuration before live tests. See the
+handoff for evidence and constraints.
+
+Still required: an operator-approved paid-run time/spend ceiling before paid,
+GitHub-mutating acceptance. Select an idle runner when scheduling the fixture.
 
 These fixture details do not block local implementation or mock-based tests.
 

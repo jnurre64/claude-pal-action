@@ -3,6 +3,50 @@
 Prepared 2026-09-07. This file transfers the approved design and local work to a
 fresh session. Continue from the committed milestones on the existing branch.
 
+## Current handoff checkpoint
+
+Prepared for a new session on the same machine and checkout. The validated
+engine/model and reachable-phase preflight milestone is committed as `5b7fb8a`
+(`feat: resolve worker engines and preflight reachable phases (#116)`). The
+handoff/evidence update is the subsequent commit titled
+`docs: prepare Codex worker engine continuation handoff (#116)`.
+Use `git log -2 --oneline` to identify both. These commits are local; no push or
+PR has been made. Earlier references to uncommitted work are historical.
+
+Current state:
+
+- Claude remains the default and only enabled worker engine. Codex selection
+  fails closed until its adapter/policy implementation is ready.
+- Engine/model resolution, per-phase overrides, reachable-phase preflight, schema
+  snapshots, and semantic failure handling are implemented. Full BATS: 481 pass;
+  15 new configuration tests included. ShellCheck and whitespace checks pass.
+- The operator approved and installed the standard Ubuntu Bubblewrap AppArmor
+  profile. Host sandbox startup and 18 initial no-model boundary checks now pass.
+  Reuse this machine's existing STRONGBAD/STRONGMAD/STRONGSAD runners; no new host
+  or runner registration is needed for the resolved prerequisite.
+- Probe source and results are preserved in
+  [sandbox evidence](evidence/2026-09-07-codex-sandbox/README.md), so the next
+  session need not rely on `/tmp` artifacts surviving.
+- The operator selected **`Frightful-Games/recipe-manager-demo`** for isolated
+  acceptance and stated the existing PAT has access. Do not re-ask the repository
+  choice. A read-only check with this session's default `gh` credentials could
+  not resolve that name, and listing visible organization repositories found no
+  recipe match. Before live tests, verify the exact slug and access using the
+  intended existing ignored runner configuration/PAT without printing secrets;
+  this result does not prove the repository is absent. Do not substitute the
+  similarly named local `recipe-manager-setup-demo` checkout automatically.
+- The **paid-run time/spend ceiling is still unset**. Obtain it before paid
+  model sessions/GitHub-mutating acceptance. The fixture choice does not authorize
+  unlimited runs. Local implementation and no-model tests can proceed.
+
+Resume with the remaining permission proof: command restrictions, MCP/hooks/
+plugins and project-config inheritance, real worker credential isolation,
+nested instruction paths and replacement attacks. Then implement Codex CLI
+capability/auth checks, adapter/JSONL normalization and process-tree supervision,
+followed by portable assets/workflows and all-Codex/mixed-engine acceptance.
+Preserve human approval, fresh independent reviews, locks and semantic outcomes.
+Webber production and the operator's authentication remain outside this rollout.
+
 ## Start here
 
 1. Read root `AGENTS.md`, `CLAUDE.md`, and scoped guidance for files being edited.
@@ -36,8 +80,9 @@ The previously uncommitted work is now captured in three milestone commits:
 Use `git log -3 --oneline` to see the checkpoint commits. The historical progress
 sections below describe the work before it was committed; references there to
 uncommitted changes are historical. Preserve any new changes made afterward.
-The next step remains engine/model resolution and reachable-phase preflight,
-followed by Codex permission verification. No Codex worker support is claimed.
+The checkpoint predates the engine/model continuation below. Read its current
+progress and permission-probe blocker before choosing the next step. No Codex
+worker support is claimed.
 
 ## Confirmed user decisions
 
@@ -161,11 +206,191 @@ of runner/redaction and common compatibility tests also passes all 116 tests
 `tests/test_defaults.bats:13` for its expected failing config load. No live
 worker sessions were run; mocks do not establish Codex support.
 
-Next implementation step: resolve and freeze engine/model/policy configuration,
+Historical next step at that checkpoint: resolve and freeze engine/model/policy configuration,
 including per-phase overrides and reachable-phase preflight; then perform the
 Codex capability and permission proof before enabling its adapter. Worker
 process-tree supervision, portable worker assets, and isolated live fixtures
 remain pending. Webber and the operator's authentication were not changed.
+
+## Implementation progress — engine configuration and permission probe
+
+This continuation is now committed as `5b7fb8a` on
+`feat/116-codex-worker-engine`. Issues #116
+and #112 still have no comments. No worker model sessions, GitHub mutations,
+pushes, commits, or production configuration changes were performed.
+
+- `scripts/lib/agent-config.sh` resolves `AGENT_ENGINE` and phase overrides.
+  Engine model defaults are `AGENT_MODEL_CLAUDE` / `AGENT_MODEL_CODEX`, following
+  explicit phase models and preceding legacy `AGENT_MODEL`. The legacy fallback
+  applies only to the dispatch default engine. REPLY/VALIDATE retain historical
+  TRIAGE model inheritance only when their engines match. Recognizable foreign
+  model families fail closed; custom IDs remain unchanged.
+- Reachability includes reply-to-triage/direct-implementation branches, both
+  enabled independent reviews, test fixes, and review retries. Invalid retry
+  counts conservatively include the gate's fallback retries. Disabled gates and
+  unrelated events do not require their engines. `status` bypasses preflight.
+- Dispatch preflight runs under the existing lock before handlers touch
+  worktrees. It checks schemas/dependency, Claude CLI/timeout availability,
+  local auth status, numeric limits, effort, and permission values. Failure
+  records semantic `agent:failed` with process exit zero and a scrubbed diagnostic
+  log; tests verify the existing worktree survives and the lock is released.
+- Successful preflight freezes engine/model choices and schema JSON in
+  `AGENT_PHASE_MAP`, makes worker policy variables readonly, and logs the resolved
+  choices. `run_agent` rejects phases absent from this map. The Claude adapter
+  consumes the resolved model without introducing another global fallback.
+- Readonly shell variables are harness consistency, not worker isolation. Memory
+  and MCP file contents, protected capture paths, command/network restrictions,
+  CLI optional-flag capability checks, and process-tree supervision still need
+  the subsequent adapter/policy milestone. No blanket CLI-version compatibility
+  is claimed by the current auth/policy checks.
+- Codex is recognized but deliberately disabled in both dispatch preflight and
+  direct `run_agent` use. No automatic fallback or unsafe sandbox bypass exists.
+- Fifteen behavioral tests in `tests/test_agent_config.bats` cover precedence,
+  mixed models, reachability, disabled gates, invalid settings, auth output,
+  schema snapshots, and actual isolated entry-point failure/status behavior.
+
+Validation: prerequisites pass with
+`PATH="/tmp/sandbox-pal-worker-venv/bin:$PATH"`; ShellCheck and `git diff --check`
+pass. The full BATS suite passes all 481 tests (`/tmp/engine-config-full.log`),
+including all 15 new configuration tests. The existing BW01 warning remains in
+`tests/test_defaults.bats:13`. No bot changes required pytest. These tests use
+mock workers and do not establish Codex support.
+
+The installed CLI remains `codex-cli 0.153.4`. Help confirms stdin prompts,
+JSONL, final-message files, schemas, ephemeral execution, `--ignore-user-config`,
+and `--ignore-rules`. The latter two flags are not proof of project/MCP/hook
+isolation. `--add-dir` still grants writes. Top-level approval policy supports
+`never`; no model invocation was made to verify effective unattended behavior.
+
+A no-model sandbox smoke probe failed before the command could start:
+
+```bash
+probe_dir=$(mktemp -d /tmp/codex-permission-probe-XXXXXX)
+codex sandbox -P :read-only -C "$probe_dir" /bin/true
+# exit 1: bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+```
+
+The installed `sandbox` subcommand requires a named permission profile; passing
+only the older top-level `-s read-only` exits 2 before execution. The corrected
+probe above uses the documented restrictive built-in profile. Evidence is in
+`/tmp/codex-permission-probe.log`. This proves an environment startup blocker,
+not successful denied-write enforcement. No host policy was relaxed.
+
+Official sources checked on 2026-09-07:
+[permission profiles](https://learn.chatgpt.com/docs/permissions),
+[sandbox prerequisites](https://learn.chatgpt.com/docs/sandboxing), and
+[approvals/security](https://learn.chatgpt.com/docs/agent-approvals-security).
+Profiles can describe narrow filesystem boundaries; their domain rules require
+an active network proxy. These documented features still need executable hostile
+fixtures on a runner where the sandbox starts, including protected paths,
+symlinks, credentials, commands, MCP, and project policy inheritance.
+
+Next: continue the remaining permission and CLI capability checks described
+below, then the Codex adapter and process-tree supervision. The host sandbox
+startup prerequisite is now resolved and initial boundary probes pass. Portable worker
+assets and paid all-Codex/mixed-engine acceptance remain pending. The operator
+has selected the fixture repository (see current checkpoint); access verification
+and spend/time authorization remain before paid/GitHub-mutating runs.
+
+## Local runner assessment — 2026-09-07
+
+The operator confirmed that the existing runners are on this machine. Read-only
+inspection found three active Frightful-Games organization runner services:
+
+| Runner | Installation | Service user |
+| --- | --- | --- |
+| STRONGBAD | `/home/jonny/actions-runner` | `jonny` |
+| STRONGMAD | `/home/jonny/actions-runner-strongmad` | `jonny` |
+| STRONGSAD | `/home/jonny/actions-runner-strongsad` | `jonny` |
+
+All three listener environments resolve `codex` and `claude` from
+`/home/jonny/.local/bin` and `bwrap` from `/usr/bin`. The inspected services have
+no private user namespace, namespace restriction, or AppArmor profile override;
+the listeners and the host diagnostic process report `unconfined`. No worker
+process was observed during the initial process check; this is not a reservation
+of any runner or a guarantee that it remains idle.
+
+The host is Ubuntu 24.04.4, kernel `6.8.0-137-generic`, Bubblewrap `0.9.0`.
+`kernel.unprivileged_userns_clone=1` and
+`kernel.apparmor_restrict_unprivileged_userns=1`. A host-context read-only Codex
+probe still fails with `Failed RTM_NEWADDR`; kernel audit records show Bubblewrap
+transitioning into `unprivileged_userns`. The configured profile denies namespace
+capabilities. No Bubblewrap-specific AppArmor profile is installed, and
+`apparmor-profiles` is absent. This points to the documented Ubuntu 24.04
+Bubblewrap/AppArmor prerequisite, rather than a missing runner installation.
+
+The Ubuntu `apparmor-profiles` package was downloaded and extracted under
+`/tmp/codex-runner-apparmor-review`, without installing it. Its standard
+`usr/share/apparmor/extra-profiles/bwrap-userns-restrict` profile allows Bubblewrap
+to set up namespaces and drops capabilities in children. `apparmor_parser -Q -T`
+validated the profile without loading it into the kernel. The candidate fix is
+to install that specific profile at `/etc/apparmor.d/bwrap-userns-restrict` and
+load it with `apparmor_parser -r`, then repeat the smoke and hostile-fixture tests.
+Do not disable the host-wide user-namespace restriction. Applying the profile is
+a host security policy change shared by all three runners. At the time of this
+assessment it was pending operator approval; the follow-up below records its
+subsequent installation and verification.
+
+A fourth runner on this same host would share the underlying prerequisite. Reuse
+the existing installations once enforcement passes, with isolated test artifacts;
+a separate VM remains an option if host policy changes are undesirable. Both
+CLIs being installed does not establish completed Codex worker support.
+
+## AppArmor fix verified — 2026-09-07
+
+The operator explicitly approved installing/loading the standard Ubuntu
+Bubblewrap profile. Automated installation stopped at `sudo` authentication
+before any host change. The operator then ran both `sudo install` and
+`sudo apparmor_parser -r` commands and confirmed completion.
+
+Verification in host context (outside the interactive session sandbox):
+
+- `/etc/apparmor.d/bwrap-userns-restrict` exactly matches the downloaded Ubuntu
+  package profile (`cmp` succeeds). Listing the kernel profile registry is denied
+  to the current unprivileged account; effective behavior was tested instead.
+- `codex sandbox -P :read-only -C <disposable directory> /bin/true` now exits 0.
+  The previous `Failed RTM_NEWADDR` startup failure is resolved.
+- `kernel.apparmor_restrict_unprivileged_userns` remains 1. No sysctl was relaxed.
+- All three runner services remain active. `claude --version` succeeds with
+  `2.1.263 (Claude Code)`; `codex --version` reports `0.153.4`. No paid Claude or
+  Codex worker was started, and no authentication was changed.
+
+A no-model Python fixture executed 18 command-boundary checks, all passing:
+
+| Boundary | Observed result |
+| --- | --- |
+| Built-in read-only profile | Source reads succeed; existing/new source writes fail |
+| Explicit implementation profile | Intended source edit succeeds |
+| Explicit triage profile | `.agent-data/plan.md` write succeeds; source edit fails |
+| Root protected files/directories | Writes to `AGENTS.md`, `CLAUDE.md`, `.agents/`, `.codex/`, `.claude/` fail |
+| Symlink targets | Writes through links to protected instructions and external memory fail |
+| External memory/capture | Writes fail; memory reads succeed |
+| Explicitly denied synthetic credential | Read fails; no real credentials were used |
+| Network disabled | Connection denied with permission error to a local listener reachable by the host control |
+
+These were explicit CLI permission-profile overrides applied only to disposable
+fixtures. The implementation profile made the root filesystem readable, the
+workspace writable, named instruction/policy paths read-only, and a synthetic
+credential path denied. The triage profile made only `.agent-data` writable.
+Both profiles disabled network. These profiles are probes, not shipped worker
+policies; broad root readability is not a complete credential-isolation policy.
+
+Artifacts in this machine's temporary directory:
+`/tmp/codex-runner-boundary-probe.py`,
+`/tmp/codex-runner-boundary-results.json`, and
+`/tmp/codex-runner-boundaries-twton0j6/`. Temporary artifacts may disappear; exact probe source and results are now
+archived in [sandbox evidence](evidence/2026-09-07-codex-sandbox/README.md).
+These initial probes are not complete release acceptance evidence. `git diff --check` passes for this
+handoff-only continuation; the prior full runtime suite remains 481 passing.
+
+Existing runners can now support further Codex sandbox development; a new runner
+installation is unnecessary for this prerequisite. This is not yet a completed
+Codex adapter or GitHub Actions acceptance run. Remaining proof includes command
+policy, MCP/hooks/plugins and project configuration inheritance, scoped/nested
+instruction protection, rename/unlink/hardlink attacks, actual worker credential
+environment isolation, process-tree cancellation, and model-driven tool paths.
+Preserve the Codex execution gate until the adapter and required policies are
+verified. No runner services were restarted and Webber production was unchanged.
 
 ## Implementation order
 
@@ -255,21 +480,38 @@ Use the tools and approval policy available in the new session.
 
 ## Remaining questions for live acceptance only
 
-The fixture repository, runner/platform, and paid-run time/spend ceiling are not
-yet selected. Obtain those details before the paid GitHub-mutating acceptance
-runs; they do not block local implementation or mocked tests. Webber production
-workers and its stopped loop must not be switched or restarted by this work.
+The fixture repository is the operator-selected
+`Frightful-Games/recipe-manager-demo`, using the existing PAT. Verify its exact
+slug/access with the intended credential context as described above. The
+existing Ubuntu runner host is available; select an idle runner when scheduling
+tests rather than assuming one is reserved. Obtain the paid-run time/spend
+ceiling before paid/GitHub-mutating acceptance. These details do not block local
+implementation or no-model tests. Webber production workers and its stopped loop
+must not be switched or restarted by this work.
+
+## How to transfer to the next session
+
+On this machine, open a new session in `/home/jonny/repos/sandbox-pal-action` and
+paste the prompt below. Stay on `feat/116-codex-worker-engine`; do not recreate
+or reset the checkout. The new session should inspect status/logs before edits.
+The files and local commits are enough; the old chat history is not required.
+
+For a different machine, transfer the branch commits first: they have not been
+pushed. The AppArmor installation and temporary Python venv are host state and do
+not transfer with Git. Re-establish prerequisites and rerun sandbox verification
+there before relying on this host's evidence.
 
 ## Suggested opening prompt for the next session
 
-> Continue implementing issue 116 on `feat/116-codex-worker-engine`. Read
-> `docs/superpowers/plans/2026-09-07-codex-worker-engine-handoff.md` and the linked
-> implementation plan first. Preserve the existing uncommitted Codex setup.
-> The approved first release includes a dispatch-wide default, per-phase
-> Claude/Codex overrides, both Codex auth modes, and unchanged independent review
-> gates. The #112 asset delivery and normalized Claude adapter milestones are
-> complete locally. Continue with engine/model resolution and reachable-phase
-> preflight, then the Codex permission proof. Read the continuation evidence
-> before starting a completed milestone.
-> Continue through local implementation and validation; obtain fixture
-> details before live acceptance runs and do not change Webber production.
+> Continue issue #116 in `/home/jonny/repos/sandbox-pal-action` on
+> `feat/116-codex-worker-engine`. Read
+> `docs/superpowers/plans/2026-09-07-codex-worker-engine-handoff.md` first, then
+> the linked implementation plan and applicable repository guidance. The
+> configuration milestone is committed as `5b7fb8a`; 481 BATS tests pass.
+> The existing runner host's AppArmor prerequisite is fixed, and 18 initial
+> sandbox checks pass. Resume the remaining permission proof, then the Codex
+> adapter and process-tree supervision. Preserve Claude defaults, human approval,
+> independent fresh reviews, locks, and semantic outcomes. Use the selected
+> `Frightful-Games/recipe-manager-demo` fixture and existing PAT; verify access
+> in the intended credential context. Obtain a time/spend ceiling before paid
+> acceptance runs. Do not change Webber production or personal authentication.
