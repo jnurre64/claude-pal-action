@@ -2,6 +2,46 @@
 
 This document covers every configuration option in sandbox-pal-action, how values are loaded, and example configurations for different project types.
 
+## Worker engine and model selection (staged #116 implementation)
+
+Claude remains the only enabled worker engine. `AGENT_ENGINE` defaults to
+`claude`; a nonempty `AGENT_ENGINE_<PHASE>` overrides it. `codex` is recognized
+but fails preflight until its permission implementation is verified. There is
+no automatic fallback. The interactive client does not select the worker engine.
+
+Supported phase names are `TRIAGE`, `REPLY`, `VALIDATE`, `IMPLEMENT`, `REVIEW`
+(PR feedback revisions), `ADVERSARIAL_PLAN`, `POST_IMPL_REVIEW`,
+`POST_IMPL_RETRY`, `TEST_FIX`, and `CLEANUP`.
+
+Model precedence is:
+
+1. `AGENT_MODEL_<PHASE>`.
+2. `AGENT_MODEL_CLAUDE` or `AGENT_MODEL_CODEX`, according to the phase engine.
+3. Legacy `AGENT_MODEL`, only when the phase uses the dispatch default engine.
+4. The selected CLI's default model.
+
+For compatibility, `REPLY` and `VALIDATE` inherit `AGENT_MODEL_TRIAGE` before
+step 2 when their own model is empty and their engine matches `TRIAGE`.
+Recognizable cross-provider model mistakes fail configuration validation;
+custom model IDs are passed unchanged, and availability still depends on the CLI
+and provider.
+
+Dispatch preflight runs after acquiring the existing issue lock and before
+handlers reset worktrees or start workers. It checks reachable phases, including
+reply branches, enabled independent reviews, and possible bounded fix sessions.
+Disabled gates and unrelated events require no worker credentials. `status`
+skips worker preflight entirely. Current checks cover validator/schema assets,
+Claude CLI and `timeout` availability, local `claude auth status --json`, numeric
+limits, and effort/permission values. They do not establish quota availability
+or prove that every CLI version supports every optional flag.
+
+On success, dispatch freezes resolved engine/model choices, schema contents, and
+shell policy settings. File contents such as memory and MCP configuration are
+not yet isolated or snapshotted by this mechanism. Preflight failure records
+`agent:failed` through the existing lock/outcome machinery; process exit zero
+still does not mean semantic success. Details are in the dispatch log and the
+scrubbed `preflight-*.log` capture.
+
 ## Config Loading Order
 
 Configuration values are resolved in this order, with earlier sources taking priority:
@@ -220,7 +260,7 @@ Maximum automated fix sessions when the pre-PR test gate fails. Each session is 
 |-----|---------|------|
 | `AGENT_TEST_GATE_MAX_RETRIES` | `2` | non-negative integer (`0` = no fix sessions) |
 | `AGENT_PROMPT_TEST_FIX` | *(empty, built-in `prompts/test-fix.md`)* | path |
-| `AGENT_MODEL_TEST_FIX` | *(empty, falls back to `AGENT_MODEL`)* | model name |
+| `AGENT_MODEL_TEST_FIX` | *(empty, uses worker model precedence above)* | model name |
 
 ### AGENT_EFFORT_LEVEL
 
@@ -340,7 +380,7 @@ AGENT_PROMPT_CLEANUP="/home/user/my-project/agent-prompts/cleanup.md"
 
 ### AGENT_MODEL_CLEANUP
 
-Per-workflow model override for the cleanup session. Empty falls back to `AGENT_MODEL`, then the CLI default. Cleanup is bookkeeping (doc edits, issue filing), not implementation work, so a cheap/fast model is usually a good fit.
+Per-workflow model override for the cleanup session. Empty follows the worker engine/model precedence documented above. Cleanup is bookkeeping (doc edits, issue filing), not implementation work, so a cheap/fast model is usually a good fit.
 
 | Key | Default | Type |
 |-----|---------|------|

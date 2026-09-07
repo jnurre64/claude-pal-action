@@ -2,6 +2,8 @@
 AGENT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091  # Runtime sibling path.
 source "${AGENT_LIB_DIR}/engine-claude.sh"
+# shellcheck disable=SC1091
+source "${AGENT_LIB_DIR}/agent-config.sh"
 
 # stdout is always one envelope, including preflight and process failures.
 # Keep the existing argument order while consumers migrate to the neutral API.
@@ -10,11 +12,29 @@ run_agent() (
     local prompt="$1" allowed_tools="${2:-$AGENT_ALLOWED_TOOLS_IMPLEMENT}"
     local model="${3:-}" schema="${4:-}" phase="${5:-}"
     local schema_json="" error stderr_log raw exit_code=0 normalized
+    local resolved engine=claude
+    if [ -n "${AGENT_PHASE_MAP:-}" ]; then
+        resolved=$(jq -c --arg phase "$phase" '.[$phase] // empty' <<< "$AGENT_PHASE_MAP")
+        if [ -z "$resolved" ]; then
+            agent_failure "$phase" configuration 'Phase was not preflighted for this dispatch'
+            return
+        fi
+        schema_json=$(jq -r .schema_json <<< "$resolved")
+    elif ! resolved=$(agent_resolve_phase "$phase" "$model" 2>/dev/null); then
+        agent_failure "$phase" configuration 'Invalid worker engine/model configuration'
+        return
+    fi
+    engine=$(jq -r .engine <<< "$resolved")
+    model=$(jq -r .model <<< "$resolved")
+    if [ "$engine" != claude ]; then
+        agent_failure "$phase" configuration 'Codex worker execution is not enabled; permission verification is pending' "$engine"
+        return
+    fi
     if ! python3 "${AGENT_LIB_DIR}/agent-result.py" check-dependency >/dev/null 2>&1; then
         agent_failure "$phase" configuration 'Install worker dependencies: python3 -m pip install -r scripts/requirements-worker.txt'
         return
     fi
-    if [ -n "$schema" ]; then
+    if [ -n "$schema" ] && [ -z "${AGENT_PHASE_MAP:-}" ]; then
         if [[ "$schema" != /* ]] && [ -n "${CONFIG_DIR:-}" ]; then
             schema="${CONFIG_DIR}/${schema}"
         fi
@@ -42,8 +62,8 @@ run_agent() (
 )
 
 agent_failure() {
-    jq -cn --arg phase "$1" --arg kind "$2" --arg message "$3" '{
-        version:1, engine:"claude", phase:$phase, process_exit_code:null,
+    jq -cn --arg phase "$1" --arg kind "$2" --arg message "$3" --arg engine "${4:-claude}" '{
+        version:1, engine:$engine, phase:$phase, process_exit_code:null,
         status:"failed", error:{kind:$kind,message:$message}, result_text:"",
         structured_output:null, schema_status:"not_checked", permission_denials:[],
         denials_available:false, usage:{input_tokens:null,output_tokens:null,cached_input_tokens:null},cost_usd:null

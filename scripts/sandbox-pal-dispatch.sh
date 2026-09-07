@@ -345,7 +345,7 @@ handle_issue_reply() {
 
     local result
     set_heartbeat "reply"
-    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_TRIAGE" "$AGENT_JSON_SCHEMA_REPLY" "REPLY")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "${AGENT_MODEL_REPLY:-}" "$AGENT_JSON_SCHEMA_REPLY" "REPLY")
     log_permission_denials "$result" "reply"
     if ! require_agent_success "$result" "reply"; then
         cleanup_worktree
@@ -587,7 +587,7 @@ handle_direct_implement() {
 
     local result
     set_heartbeat "validate"
-    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_TRIAGE" "$AGENT_JSON_SCHEMA_VALIDATE" "VALIDATE")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "${AGENT_MODEL_VALIDATE:-}" "$AGENT_JSON_SCHEMA_VALIDATE" "VALIDATE")
     log_permission_denials "$result" "validate"
     if ! require_agent_success "$result" "validate"; then
         cleanup_worktree
@@ -970,6 +970,18 @@ if ! acquire_dispatch_lock; then
     log "Dispatch refused — another run owns the lock for #${NUMBER}."
     exit 0
 fi
+
+# Preflight is owned by the dispatch lock, before handlers mutate worktrees or
+# invoke workers. A controlled failure preserves the public semantic outcome.
+preflight_error=$(mktemp "${AGENT_LOG_DIR}/preflight-XXXXXX.log")
+if ! agent_preflight_dispatch "$EVENT_TYPE" 2>"$preflight_error"; then
+    detail=$(redact_secrets < "$preflight_error")
+    printf '%s\n' "$detail" > "$preflight_error"
+    log "Worker preflight failed: $detail"
+    set_label "agent:failed"
+    exit 0
+fi
+rm -f "$preflight_error"
 
 case "$EVENT_TYPE" in
     new_issue)

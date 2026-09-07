@@ -18,7 +18,7 @@ engine_claude() (
         --max-turns "$AGENT_MAX_TURNS"
         --output-format json
     )
-    local effective_model="${model_override:-${AGENT_MODEL:-}}"
+    local effective_model="$model_override"
     if [ -n "$effective_model" ]; then
         claude_args+=(--model "$effective_model")
     fi
@@ -76,3 +76,34 @@ engine_claude() (
     fi
     timeout "$AGENT_TIMEOUT" claude "${claude_args[@]}"
 )
+
+# Authentication status is a local check: never print identity/credential data.
+# Invocations still classify revoked credentials and quota failures separately.
+engine_claude_preflight() {
+    command -v claude >/dev/null 2>&1 || { echo 'Claude CLI is missing' >&2; return 1; }
+    command -v timeout >/dev/null 2>&1 || { echo 'timeout is missing' >&2; return 1; }
+    if ! timeout 15 claude auth status --json 2>/dev/null | jq -e '.loggedIn == true' >/dev/null 2>&1; then
+        echo 'Claude authentication is unavailable; configure API credentials or a saved Claude login' >&2
+        return 1
+    fi
+}
+
+engine_claude_check_policy() {
+    local phase="$1" var value
+    if [[ ! "${AGENT_TIMEOUT:-}" =~ ^[0-9]+$ ]] || [[ "${AGENT_TIMEOUT:-}" =~ ^0+$ ]]; then
+        echo 'AGENT_TIMEOUT must be a positive integer number of seconds' >&2; return 1
+    fi
+    if [[ ! "${AGENT_MAX_TURNS:-}" =~ ^[0-9]+$ ]] || [[ "${AGENT_MAX_TURNS:-}" =~ ^0+$ ]]; then
+        echo 'AGENT_MAX_TURNS must be a positive integer' >&2; return 1
+    fi
+    var="AGENT_BUDGET_USD_${phase}"
+    value="${!var:-${AGENT_BUDGET_USD:-}}"
+    if [ -n "$value" ] && { [[ ! "$value" =~ ^[0-9]+([.][0-9]+)?$ ]] || [[ "$value" =~ ^0+([.]0+)?$ ]]; }; then
+        echo "${phase}: budget must be a positive dollar amount" >&2; return 1
+    fi
+    var="AGENT_EFFORT_${phase}"
+    value="${!var:-${AGENT_EFFORT_LEVEL:-high}}"
+    case "$value" in low|medium|high|xhigh|max) ;; *) echo "${phase}: unsupported Claude effort" >&2; return 1 ;; esac
+    var="AGENT_PERMISSION_MODE_${phase}"
+    case "${!var:-}" in ''|default|acceptEdits|auto|bypassPermissions|manual|dontAsk|plan) ;; *) echo "${phase}: unsupported Claude permission mode" >&2; return 1 ;; esac
+}
