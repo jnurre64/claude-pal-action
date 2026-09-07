@@ -20,6 +20,16 @@ Thanks for your interest in contributing to sandbox-pal-action!
 
 ## Conventions
 
+### Coding agents
+
+Codex project guidance starts in [AGENTS.md](AGENTS.md); Claude Code continues
+to use [CLAUDE.md](CLAUDE.md) and `.claude/`. Codex discovers the shared
+orchestration skills through `.agents/skills/`. Those skills invoke the existing
+pipeline, whose workers currently run Claude Code. Codex worker support is
+tracked in [issue #116](https://github.com/jnurre64/sandbox-pal-action/issues/116).
+
+### Code style
+
 - Shell scripts use `bash` with `set -euo pipefail`
 - All scripts must pass [ShellCheck](https://www.shellcheck.net/) with zero warnings
 - Use kebab-case for file names, SCREAMING_SNAKE_CASE for environment variables
