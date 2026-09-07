@@ -248,13 +248,35 @@ This ensures the dispatch scripts and prompts do not change until you explicitly
 
 ### Standalone Mode
 
-If you copied the dispatch scripts into your own repository, you manage updates manually. When upstream changes are released, compare the differences and apply them to your copy:
+Standalone installations created by setup include `.upstream` checksum tracking.
+Run the updater from the consuming repository:
 
 ```bash
-# In your copy of the scripts
-diff -r scripts/ /path/to/sandbox-pal-action/scripts/
-diff -r prompts/ /path/to/sandbox-pal-action/prompts/
+bash .sandbox-pal-dispatch/scripts/update.sh .sandbox-pal-dispatch
+# Accept unmodified updates and new assets; keep customizations and skip config edits:
+bash .sandbox-pal-dispatch/scripts/update.sh --yes .sandbox-pal-dispatch
 ```
+
+Setup and update share an inventory covering scripts, prompts, schemas, packaged
+skills, workflow templates, and labels. Existing customized assets require review.
+EOF keeps remaining files and configuration unchanged while recording completed
+updates. Asset replacement and tracking-file replacement use atomic renames;
+an interrupted update can be rerun. `version` records the upstream revision checked,
+and `pending_assets` counts assets still customized, missing, or deferred. Even
+at the same revision, update checks for missing assets and deferred changes.
+
+Workflow template changes produce a notice. Review the templates under
+`.sandbox-pal-dispatch/.claude/skills/setup/templates/standalone/` and apply the
+relevant changes to your actual `.github/workflows/` callers, preserving your bot
+username, customizations, and actor filters. Setup renders callers into that
+GitHub-discoverable directory; update does not automatically replace callers.
+Packaged `skills/` are distribution assets; interactive client skill discovery
+and installation destinations remain separate from this updater.
+
+For older installations without `.upstream`, compare your files against a fresh
+installation before adopting tracking. Older updaters that omit schemas must be
+replaced with the current upstream `scripts/update.sh` first; it loads the asset
+inventory from the upstream clone.
 
 ---
 
