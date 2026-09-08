@@ -98,3 +98,24 @@ MOCK
     grep -q '"POST_IMPL_REVIEW")' "${SCRIPTS_DIR}/lib/review-gates.sh"
     grep -q '"TEST_FIX")' "${SCRIPTS_DIR}/lib/review-gates.sh"
 }
+
+@test "legacy characterization: direct explicit model wins and global effort remains environment only" {
+    _setup_mock_claude
+    export AGENT_MODEL_IMPLEMENT=phase-model AGENT_MODEL_CLAUDE=engine-model
+    export CLAUDE_CODE_EFFORT_LEVEL=high AGENT_BUDGET_USD=9
+    run run_claude prompt Read caller-model '' IMPLEMENT
+    assert_success
+    grep -qx caller-model "$TEST_TEMP_DIR/claude_args"
+    grep -qx 9 "$TEST_TEMP_DIR/claude_args"
+    ! grep -q -- --effort "$TEST_TEMP_DIR/claude_args"
+    run run_agent prompt Read '' '' IMPLEMENT
+    grep -qx phase-model "$TEST_TEMP_DIR/claude_args"
+}
+
+@test "legacy characterization: phase-less caller does not gain phase flags" {
+    _setup_mock_claude
+    export AGENT_BUDGET_USD=9 AGENT_EFFORT_IMPLEMENT=max
+    run run_claude prompt Read
+    assert_success
+    ! grep -qE -- '--effort|--max-budget-usd|--permission-mode' "$TEST_TEMP_DIR/claude_args"
+}

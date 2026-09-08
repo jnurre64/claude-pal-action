@@ -26,6 +26,11 @@ A reusable dispatch system for running AI coding agents on GitHub issues — tri
 
 This system supplements interactive Claude Code sessions — it doesn't replace them. Use interactive mode to brainstorm, investigate, and draft issues. Hand off well-defined work to an agent by labeling the issue, then continue your next interactive session while the agent works in the background. When the agent opens a PR, reference its changes in your interactive sessions to build on its work.
 
+Keep both engines' models, effort and limits in one project config with the
+opt-in [engine settings profiles](docs/configuration.md#retain-both-engines-settings).
+After adoption, changing the default or phase engine selects its stored settings
+from either interactive client or label workflow.
+
 ## How It Works
 
 When you label a GitHub issue with `agent`, the system:

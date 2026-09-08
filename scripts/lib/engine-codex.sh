@@ -10,6 +10,7 @@ engine_codex_preflight() {
 
 # Return a frozen native policy. Never silently translate Claude permissions.
 engine_codex_policy() {
+    local settings="${2:-}" invocation_timeout
     local phase="$1" var value sandbox tools native="${AGENT_CODEX_USE_NATIVE_POLICY:-true}"
     case "$native" in true|false) ;; *) echo 'AGENT_CODEX_USE_NATIVE_POLICY must be true or false' >&2; return 1 ;; esac
     case "$phase" in
@@ -34,22 +35,27 @@ engine_codex_policy() {
             return 1
         fi
     done
-    var="AGENT_BUDGET_USD_${phase}"
-    if [ -n "${!var:-${AGENT_BUDGET_USD:-}}" ]; then
-        echo "${phase}: Codex cannot enforce the requested dollar budget" >&2; return 1
+    if [ -z "$settings" ]; then
+        settings=$(agent_phase_settings codex "$phase") || return 1
     fi
-    var="AGENT_PERMISSION_MODE_${phase}"
-    if [ -n "${!var:-}" ]; then
-        echo "${phase}: Claude permission modes are not Codex sandbox policies" >&2; return 1
+    if [ "${AGENT_ENGINE_PROFILES:-false}" != true ] || [ "$native" = false ]; then
+        var="AGENT_BUDGET_USD_${phase}"
+        if [ -n "${!var:-${AGENT_BUDGET_USD:-}}" ]; then
+            echo "${phase}: Codex cannot enforce the requested dollar budget" >&2; return 1
+        fi
+        var="AGENT_PERMISSION_MODE_${phase}"
+        if [ -n "${!var:-}" ]; then
+            echo "${phase}: Claude permission modes are not Codex sandbox policies" >&2; return 1
+        fi
     fi
-    var="AGENT_EFFORT_${phase}"
-    value="${!var:-}"
+    value=$(jq -r .effort <<< "$settings")
     case "$value" in ''|minimal|low|medium|high|xhigh) ;; *) echo "${phase}: unsupported Codex effort" >&2; return 1 ;; esac
-    if [[ ! "${AGENT_TIMEOUT:-}" =~ ^[0-9]+$ ]] || [[ "$AGENT_TIMEOUT" =~ ^0+$ ]]; then
-        echo 'AGENT_TIMEOUT must be a positive integer number of seconds' >&2; return 1
+    invocation_timeout=$(jq -r .timeout <<< "$settings")
+    if [[ ! "$invocation_timeout" =~ ^[0-9]+$ ]] || [[ "$invocation_timeout" =~ ^0+$ ]]; then
+        echo "${phase}: timeout must be a positive integer number of seconds" >&2; return 1
     fi
     case "${AGENT_SESSION_PERSISTENCE:-false}" in true|false) ;; *) echo 'Invalid session persistence' >&2; return 1 ;; esac
-    jq -cn --arg sandbox "$sandbox" --arg effort "$value" --arg timeout "$AGENT_TIMEOUT" \
+    jq -cn --arg sandbox "$sandbox" --arg effort "$value" --arg timeout "$invocation_timeout" \
         --argjson persist "${AGENT_SESSION_PERSISTENCE:-false}" --argjson native "$native" \
         '{sandbox:$sandbox,effort:$effort,timeout:($timeout|tonumber),persist:$persist,use_native_policy:$native}'
 }

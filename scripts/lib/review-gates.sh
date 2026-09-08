@@ -167,7 +167,7 @@ run_adversarial_plan_review() {
 
     local result
     set_heartbeat "adversarial-plan"
-    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_ADVERSARIAL_PLAN" "$AGENT_JSON_SCHEMA_ADVERSARIAL_PLAN" "ADVERSARIAL_PLAN")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "" "$AGENT_JSON_SCHEMA_ADVERSARIAL_PLAN" "ADVERSARIAL_PLAN")
     log_permission_denials "$result" "adversarial-plan"
     if ! require_agent_success "$result" "adversarial-plan"; then
         return 1
@@ -310,7 +310,7 @@ run_test_gate() {
         local prompt result
         prompt=$(load_prompt "test-fix" "${AGENT_PROMPT_TEST_FIX}")
         set_heartbeat "test-fix-${attempt}"
-        result=$(run_agent "$prompt" "$impl_tools" "$AGENT_MODEL_TEST_FIX" "" "TEST_FIX")
+        result=$(run_agent "$prompt" "$impl_tools" "" "" "TEST_FIX")
         log_permission_denials "$result" "test-fix"
         log "Test-fix session output: $(parse_agent_output "$result" | head -c 300)"
         if [ "$(classify_agent_result "$result")" = "fail_fast" ]; then
@@ -369,7 +369,7 @@ run_post_impl_review() {
 
     local result
     set_heartbeat "post-impl-review"
-    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_POST_IMPL_REVIEW" "$AGENT_JSON_SCHEMA_POST_IMPL_REVIEW" "POST_IMPL_REVIEW")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "" "$AGENT_JSON_SCHEMA_POST_IMPL_REVIEW" "POST_IMPL_REVIEW")
     log_permission_denials "$result" "post-impl-review"
 
     local claude_output
@@ -451,7 +451,7 @@ run_post_impl_retry_session() {
 
     local result
     set_heartbeat "post-impl-retry"
-    result=$(run_agent "$prompt" "$impl_tools" "$AGENT_MODEL_POST_IMPL_RETRY" "$AGENT_JSON_SCHEMA_POST_IMPL_RETRY" "POST_IMPL_RETRY")
+    result=$(run_agent "$prompt" "$impl_tools" "" "$AGENT_JSON_SCHEMA_POST_IMPL_RETRY" "POST_IMPL_RETRY")
     log_permission_denials "$result" "post-impl-retry"
 
     local claude_output

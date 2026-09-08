@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2030,SC2031  # Effort is intentionally local to each invocation.
 # ─── Run Claude and capture structured output ────────────────────
 engine_claude() (
     set -euo pipefail
@@ -7,7 +8,24 @@ engine_claude() (
     local model_override="${3:-}"
     local schema_file="${4:-}"
     local phase="${5:-}"
-    local memory
+    local policy="${6:-}" memory
+    if [ -z "$policy" ]; then
+        local settings
+        settings=$(agent_phase_settings claude "$phase") || return 1
+        policy=$(engine_claude_policy "$phase" "$settings") || return 1
+    fi
+    local budget effort permission_mode turns invocation_timeout effort_env
+    budget=$(jq -r .budget_usd <<< "$policy")
+    effort=$(jq -r .effort <<< "$policy")
+    permission_mode=$(jq -r .permission_mode <<< "$policy")
+    turns=$(jq -r .max_turns <<< "$policy")
+    invocation_timeout=$(jq -r .timeout <<< "$policy")
+    effort_env=$(jq -r .effort_env <<< "$policy")
+    if [ "$(jq -r .set_effort_env <<< "$policy")" = true ]; then
+        export CLAUDE_CODE_EFFORT_LEVEL="$effort_env"
+    else
+        unset CLAUDE_CODE_EFFORT_LEVEL
+    fi
     memory=$(load_shared_memory)
 
     cd "$WORKTREE_DIR" || return 1
@@ -15,7 +33,7 @@ engine_claude() (
         -p "$prompt"
         --allowedTools "$allowed_tools"
         --disallowedTools "$AGENT_DISALLOWED_TOOLS"
-        --max-turns "$AGENT_MAX_TURNS"
+        --max-turns "$turns"
         --output-format json
     )
     local effective_model="$model_override"
@@ -39,22 +57,9 @@ engine_claude() (
     if [ -n "$memory_dir" ]; then
         claude_args+=(--add-dir "$memory_dir")
     fi
-    # Per-phase invocation flags (#98). Every one optional, defaulting to
-    # current behaviour — budget in particular is LIMITLESS unless set:
-    # turns and dollars are not interchangeable bounds, but a cap is the
-    # operator's choice, never the harness's.
-    if [ -n "$phase" ]; then
-        local _var
-        _var="AGENT_BUDGET_USD_${phase}"
-        local budget="${!_var:-${AGENT_BUDGET_USD:-}}"
-        [ -n "$budget" ] && claude_args+=(--max-budget-usd "$budget")
-        _var="AGENT_EFFORT_${phase}"
-        local effort="${!_var:-}"
-        [ -n "$effort" ] && claude_args+=(--effort "$effort")
-        _var="AGENT_PERMISSION_MODE_${phase}"
-        local permission_mode="${!_var:-}"
-        [ -n "$permission_mode" ] && claude_args+=(--permission-mode "$permission_mode")
-    fi
+    [ -z "$budget" ] || claude_args+=(--max-budget-usd "$budget")
+    [ -z "$effort" ] || claude_args+=(--effort "$effort")
+    [ -z "$permission_mode" ] || claude_args+=(--permission-mode "$permission_mode")
     # Gate the MCP tool surface explicitly: without --strict-mcp-config a
     # phase silently inherits the operator's personal MCP servers —
     # "inherit identity, memory and skills; gate the tool surface."
@@ -74,7 +79,7 @@ engine_claude() (
     if [ -n "$schema_file" ]; then
         claude_args+=(--json-schema "$schema_file")
     fi
-    timeout "$AGENT_TIMEOUT" claude "${claude_args[@]}"
+    timeout "$invocation_timeout" claude "${claude_args[@]}"
 )
 
 # Authentication status is a local check: never print identity/credential data.
@@ -88,22 +93,35 @@ engine_claude_preflight() {
     fi
 }
 
-engine_claude_check_policy() {
-    local phase="$1" var value
-    if [[ ! "${AGENT_TIMEOUT:-}" =~ ^[0-9]+$ ]] || [[ "${AGENT_TIMEOUT:-}" =~ ^0+$ ]]; then
-        echo 'AGENT_TIMEOUT must be a positive integer number of seconds' >&2; return 1
+engine_claude_policy() {
+    local phase="$1" settings="$2" value effort_env set_effort_env=false
+    value=$(jq -r .timeout <<< "$settings")
+    if [[ ! "$value" =~ ^[0-9]+$ ]] || [[ "$value" =~ ^0+$ ]]; then
+        echo "${phase}: timeout must be a positive integer number of seconds" >&2; return 1
     fi
-    if [[ ! "${AGENT_MAX_TURNS:-}" =~ ^[0-9]+$ ]] || [[ "${AGENT_MAX_TURNS:-}" =~ ^0+$ ]]; then
-        echo 'AGENT_MAX_TURNS must be a positive integer' >&2; return 1
+    value=$(jq -r .max_turns <<< "$settings")
+    if [[ ! "$value" =~ ^[0-9]+$ ]] || [[ "$value" =~ ^0+$ ]]; then
+        echo "${phase}: max turns must be a positive integer" >&2; return 1
     fi
-    var="AGENT_BUDGET_USD_${phase}"
-    value="${!var:-${AGENT_BUDGET_USD:-}}"
+    value=$(jq -r .budget_usd <<< "$settings")
     if [ -n "$value" ] && { [[ ! "$value" =~ ^[0-9]+([.][0-9]+)?$ ]] || [[ "$value" =~ ^0+([.]0+)?$ ]]; }; then
         echo "${phase}: budget must be a positive dollar amount" >&2; return 1
     fi
-    var="AGENT_EFFORT_${phase}"
-    value="${!var:-${AGENT_EFFORT_LEVEL:-high}}"
-    case "$value" in low|medium|high|xhigh|max) ;; *) echo "${phase}: unsupported Claude effort" >&2; return 1 ;; esac
-    var="AGENT_PERMISSION_MODE_${phase}"
-    case "${!var:-}" in ''|default|acceptEdits|auto|bypassPermissions|manual|dontAsk|plan) ;; *) echo "${phase}: unsupported Claude permission mode" >&2; return 1 ;; esac
+    value=$(jq -r .effort <<< "$settings")
+    effort_env="${CLAUDE_CODE_EFFORT_LEVEL-${AGENT_EFFORT_LEVEL:-high}}"
+    if [ "${CLAUDE_CODE_EFFORT_LEVEL+x}" ]; then set_effort_env=true; fi
+    if [ "${AGENT_ENGINE_PROFILES:-false}" = true ]; then
+        effort_env="$value" set_effort_env=true
+    fi
+    case "${value:-${effort_env:-${AGENT_EFFORT_LEVEL:-high}}}" in low|medium|high|xhigh|max) ;; *) echo "${phase}: unsupported Claude effort" >&2; return 1 ;; esac
+    value=$(jq -r .permission_mode <<< "$settings")
+    case "$value" in ''|default|acceptEdits|auto|bypassPermissions|manual|dontAsk|plan) ;; *) echo "${phase}: unsupported Claude permission mode" >&2; return 1 ;; esac
+    jq -c --arg effort_env "$effort_env" --argjson set_effort_env "$set_effort_env" \
+        '. + {effort_env:$effort_env,set_effort_env:$set_effort_env}' <<< "$settings"
+}
+
+engine_claude_check_policy() {
+    local settings
+    settings=$(agent_phase_settings claude "$1") || return 1
+    engine_claude_policy "$1" "$settings" >/dev/null
 }

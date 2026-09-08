@@ -544,6 +544,7 @@ MOCK
     cp "$SCRIPTS_DIR/setup.sh" "$ASSET_UPSTREAM/scripts/"
     cp "$LIB_DIR/config-vars.sh" "$ASSET_UPSTREAM/scripts/lib/"
     cp -R "$SCRIPTS_DIR/../schemas/." "$ASSET_UPSTREAM/schemas/"
+    cp "$SCRIPTS_DIR/../config.defaults.env.example" "$ASSET_UPSTREAM/config.defaults.env.example"
     printf '#!/bin/bash\nexit 0\n' > "$ASSET_UPSTREAM/scripts/check-prereqs.sh"
     local target="$TEST_TEMP_DIR/consumer repo"
     mkdir -p "$target"
@@ -561,6 +562,11 @@ MOCK
             grep -F ".claude/skills/$skill/SKILL.md:" "$target/.sandbox-pal-dispatch/.upstream"
         done
     done
+    grep -qx '  - AGENT_ENGINE_PROFILES' "$target/.sandbox-pal-dispatch/.upstream"
+    grep -qx '  - AGENT_TIMEOUT_CODEX_TEST_FIX' "$target/.sandbox-pal-dispatch/.upstream"
+    run bash -c 'source "$1"; echo "${AGENT_ENGINE_PROFILES:-false}"' _ "$target/.sandbox-pal-dispatch/config.env"
+    assert_success
+    assert_output false
     [ -f "$target/.github/workflows/agent-triage.yml" ]
     [ ! -L "$target/.sandbox-pal-dispatch/skills/example/SKILL.md" ]
 }
@@ -689,15 +695,28 @@ MOCK
     cp "$LIB_DIR/config-vars.sh" "$ASSET_UPSTREAM/scripts/lib/"
     cp "$SCRIPTS_DIR/../config.defaults.env.example" "$ASSET_UPSTREAM/config.defaults.env.example"
     printf 'config_vars:\n  - AGENT_BOT_USER\n' >> "$ASSET_INSTALL/.upstream"
-    printf 'AGENT_ENGINE=claude\nAGENT_MODEL_CLAUDE=custom-model\n' > "$ASSET_INSTALL/config.env"
+    printf 'AGENT_ENGINE=claude\nAGENT_MODEL_CLAUDE=custom-model\nAGENT_TIMEOUT_CODEX_IMPLEMENT=4321\n' > "$ASSET_INSTALL/config.env"
     _asset_commit
     run bash "$SCRIPTS_DIR/update.sh" --yes "$ASSET_INSTALL"
     assert_success
     grep -qx 'AGENT_ENGINE=claude' "$ASSET_INSTALL/config.env"
     grep -qx 'AGENT_MODEL_CLAUDE=custom-model' "$ASSET_INSTALL/config.env"
     ! grep -q '^AGENT_CODEX_USE_NATIVE_POLICY=true' "$ASSET_INSTALL/config.env"
+    grep -qx 'AGENT_TIMEOUT_CODEX_IMPLEMENT=4321' "$ASSET_INSTALL/config.env"
+    grep -qx '  - AGENT_ENGINE_PROFILES' "$ASSET_INSTALL/.upstream"
+    run bash -c 'source "$1"; echo "${AGENT_ENGINE_PROFILES:-false}"' _ "$ASSET_INSTALL/config.env"
+    assert_success
+    assert_output false
     for phase in TRIAGE REPLY VALIDATE IMPLEMENT REVIEW ADVERSARIAL_PLAN POST_IMPL_REVIEW POST_IMPL_RETRY TEST_FIX CLEANUP; do
         grep -qx "  - AGENT_ENGINE_$phase" "$ASSET_INSTALL/.upstream"
         grep -qx "  - AGENT_MODEL_$phase" "$ASSET_INSTALL/.upstream"
+        for engine in CLAUDE CODEX; do
+            for setting in MODEL EFFORT TIMEOUT; do
+                grep -qx "  - AGENT_${setting}_${engine}_$phase" "$ASSET_INSTALL/.upstream"
+            done
+        done
+        for setting in BUDGET_USD PERMISSION_MODE MAX_TURNS; do
+            grep -qx "  - AGENT_${setting}_CLAUDE_$phase" "$ASSET_INSTALL/.upstream"
+        done
     done
 }

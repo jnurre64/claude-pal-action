@@ -93,6 +93,7 @@ AGENT_ALLOWED_TOOLS_CLEANUP="${AGENT_ALLOWED_TOOLS_CLEANUP:-Read,Edit,Write,Grep
 # ─── Model configuration ────────────────────────────────────
 # Claude remains the default; Codex selection fails closed until policy proof.
 AGENT_ENGINE="${AGENT_ENGINE:-claude}"
+AGENT_ENGINE_PROFILES="${AGENT_ENGINE_PROFILES:-false}"
 AGENT_MODEL_CLAUDE="${AGENT_MODEL_CLAUDE:-}"
 AGENT_MODEL_CODEX="${AGENT_MODEL_CODEX:-}"
 

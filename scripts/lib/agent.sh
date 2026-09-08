@@ -22,8 +22,12 @@ run_agent() (
             return
         fi
         schema_json=$(jq -r .schema_json <<< "$resolved")
-    elif ! resolved=$(agent_resolve_phase "$phase" "$model" 2>/dev/null); then
-        agent_failure "$phase" configuration 'Invalid worker engine/model configuration'
+    elif ! resolved=$(agent_resolve_config "$phase" "$model" 2>&1); then
+        local route
+        if route=$(agent_resolve_phase "$phase" "$model" 2>/dev/null); then
+            engine=$(jq -r .engine <<< "$route")
+        fi
+        agent_failure "$phase" configuration "$(redact_secrets <<< "$resolved")" "$engine"
         return
     fi
     engine=$(jq -r .engine <<< "$resolved")
@@ -52,12 +56,7 @@ run_agent() (
     fi
     if [ "$engine" = codex ]; then
         local policy
-        if [ -n "${AGENT_PHASE_MAP:-}" ]; then
-            policy=$(jq -c '.policy // null' <<< "$resolved")
-        elif ! policy=$(engine_codex_policy "$phase" 2>/dev/null); then
-            agent_failure "$phase" configuration 'Unsupported Codex phase policy; run dispatch preflight for details' codex
-            return
-        fi
+        policy=$(jq -c '.policy // null' <<< "$resolved")
         if [ "$policy" = null ]; then
             agent_failure "$phase" configuration 'Missing preflighted Codex policy' codex
         elif raw=$(engine_codex "$prompt" "$allowed_tools" "$model" "$schema_json" "$phase" "$policy") &&
@@ -74,7 +73,7 @@ run_agent() (
         agent_failure "$phase" configuration 'Cannot create worker capture file'
         return
     }
-    raw=$(engine_claude "$prompt" "$allowed_tools" "$model" "$schema_json" "$phase" 2>"$stderr_log") || exit_code=$?
+    raw=$(engine_claude "$prompt" "$allowed_tools" "$model" "$schema_json" "$phase" "$(jq -c .policy <<< "$resolved")" 2>"$stderr_log") || exit_code=$?
     error=$(redact_secrets < "$stderr_log")
     printf '%s\n' "$error" > "$stderr_log"
     # The normalizer scrubs decoded fields before schema validation and JSON
