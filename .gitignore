@@ -30,3 +30,7 @@ slack-bot/.pytest_cache/
 **/__pycache__/
 **/*.egg-info/
 **/.pytest_cache/
+
+# Local named dispatch selection and capture lock
+.agent-profile
+agent-profiles.json.lock/

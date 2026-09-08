@@ -26,6 +26,7 @@ jobs:
           shellcheck scripts/lib/*.sh
           shellcheck scripts/check-prereqs.sh
           shellcheck scripts/create-labels.sh
+          shellcheck scripts/agent-profile.sh
           shellcheck scripts/setup.sh
           shellcheck scripts/update.sh
 

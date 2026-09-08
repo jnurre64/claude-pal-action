@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "profiles": {
+    "codex-only": {"engine": "codex", "phases": {}, "settings": {}},
+    "claude-only": {"engine": "claude", "phases": {}, "settings": {}}
+  }
+}

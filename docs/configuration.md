@@ -124,7 +124,9 @@ AGENT_TIMEOUT_CODEX_IMPLEMENT="${AGENT_TIMEOUT_CODEX_IMPLEMENT:-5400}"
 ```
 
 After adoption, change only `AGENT_ENGINE` to switch the default from Claude to
-Codex and back. **To switch all phases**, remove or clear every configured
+Codex and back. For one-command all-phase switching and restoration, use
+[named dispatch profiles](#named-dispatch-profiles). With raw routing, **to switch
+all phases**, remove or clear every configured
 `AGENT_ENGINE_<PHASE>` routing override, including incoming environment overrides.
 To retain mixed phases instead, keep an explicit route such as
 `AGENT_ENGINE_POST_IMPL_REVIEW=codex` with `AGENT_ENGINE=claude`, or reverse those
@@ -813,3 +815,138 @@ AGENT_TEST_COMMAND="godot --headless --path . -s addons/gdUnit4/bin/GdUnitCmdToo
 AGENT_EXTRA_TOOLS="Bash(godot:*),Bash(Godot:*)"
 AGENT_MEMORY_FILE="$HOME/.claude/projects/-home-user-repos-mygame/memory/MEMORY.md"
 ```
+
+## Named dispatch profiles
+
+Named profiles switch every phase together and restore your saved routing with
+one command. They require explicit adoption of `AGENT_ENGINE_PROFILES=true`;
+installation and update leave that mode disabled. First move any unqualified
+Codex model/effort settings into their Codex namespaces as described in
+[engine settings adoption](#retain-both-engines-settings). Existing Claude
+fallbacks and both providers' authentication remain unchanged.
+
+From the runtime directory, with `AGENT_CONFIG` pointing at your project's
+existing config when using a reference installation:
+
+```bash
+# In your project config, after migrating legacy Codex settings:
+# AGENT_ENGINE_PROFILES=true
+
+# Only for a new catalog; -n preserves an existing custom catalog.
+cp -n agent-profiles.example.json /path/to/project-config/agent-profiles.json
+export AGENT_CONFIG=/path/to/project-config/config.env
+scripts/agent-profile.sh capture my-hybrid
+scripts/agent-profile.sh show my-hybrid
+scripts/agent-profile.sh use codex-only
+scripts/agent-profile.sh use claude-only
+scripts/agent-profile.sh use my-hybrid
+
+# Override this dispatch only:
+AGENT_PROFILE=codex-only scripts/sandbox-pal-dispatch.sh implement owner/repo 123
+
+# Restore ordinary AGENT_ENGINE / AGENT_ENGINE_<PHASE> routing:
+scripts/agent-profile.sh use legacy
+```
+
+`capture NAME` saves the actual legacy engine routes, even while a named profile
+is selected. It refuses an existing name and leaves selection and config files
+intact. Models, effort, timeouts and Claude caps remain shared in the existing
+config; capture saves routing, not a historical copy of those settings. If a
+catalog already exists, add the two all-provider entries from
+[`agent-profiles.example.json`](../agent-profiles.example.json) to its `profiles`
+object without replacing your existing entries. Capture also works before
+adoption, but selecting a named profile requires adoption.
+
+`list` and `show [NAME] [--json]` are read-only and call neither GitHub nor
+provider authentication. Show resolves all ten phases, displaying model (or
+`CLI default`), effort, invocation timeout, applicable caps and source keys.
+It validates settings for the engines those phases select; dispatch validates
+only phases reachable by its event. Preview is not a provider availability or
+quota check. `use NAME` validates the entire profile before atomically replacing
+the saved selector and prints the preview. A failed switch preserves the prior
+selection. Incoming `AGENT_PROFILE` still overrides a successful saved switch.
+
+Selection precedence is:
+
+1. Nonempty incoming `AGENT_PROFILE`, captured before sourcing Bash config.
+2. Nonempty saved selection (default `.agent-profile`).
+3. Nonempty `AGENT_PROFILE` from loaded config.
+4. Catalog `default`, when present.
+5. `legacy`.
+
+Explicit `legacy` suppresses lower-priority selections. Empty selectors are
+absent. This environment-first guarantee applies only to the new selector;
+ordinary Bash config assignments keep their existing precedence.
+
+A selected profile owns **all ten phase routes**, including reviews, retries,
+test fixes and cleanup. Missing phase entries use its required `engine`, even
+when old config or environment phase overrides remain set. `legacy` preserves
+those old routes. Profiles never bypass human plan approval, independent review
+sessions, test gates, locks or recovery.
+
+The catalog is one JSON object with `version: 1`, an optional `default`, and a
+`profiles` object. Names contain 1–64 ASCII letters, digits, underscores or
+hyphens, start with a letter or digit, and cannot be `legacy`. For example:
+
+```json
+{
+  "version": 1,
+  "profiles": {
+    "fast-codex": {
+      "engine": "codex",
+      "phases": {},
+      "settings": {
+        "AGENT_EFFORT_CODEX": "low",
+        "AGENT_TIMEOUT_CODEX_IMPLEMENT": "5400"
+      }
+    },
+    "hybrid": {
+      "engine": "claude",
+      "phases": {"POST_IMPL_REVIEW": "codex"},
+      "settings": {}
+    }
+  }
+}
+```
+
+Settings accept only existing engine-qualified `MODEL`, `EFFORT`, `TIMEOUT`,
+and Claude `BUDGET_USD`, `PERMISSION_MODE`, `MAX_TURNS` keys, including their
+phase variants. All values must be strings. Values overlay the same base keys,
+then reuse engine+phase → engine default → documented legacy fallback → built-in
+default resolution. An empty overlay masks that base key and inherits the next
+level; `"false"` and `"0"` remain explicit values and fail when unsupported.
+Unknown schema keys, phases, engines and unsupported controls are rejected.
+No credentials, prompts, schemas, tests, authentication or review settings are
+allowed in the catalog. Never put secrets in model identifiers or other settings
+that appear in previews. Direct explicit-model calls retain their existing
+precedence until preflight freezes a phase record.
+
+`AGENT_PROFILES_FILE` defaults to `agent-profiles.json` and
+`AGENT_PROFILE_STATE_FILE` to `.agent-profile`. Relative paths resolve against
+the effective `CONFIG_DIR`: the last existing project config loaded by the
+shared loader, or the runtime root if none exists. An existing custom
+`AGENT_CONFIG` sets that directory; a missing custom config preserves the
+existing dispatcher fallback to runtime `config.env`, then runtime defaults,
+then runtime root. The helper uses the identical loading path. An explicitly
+configured missing catalog, malformed catalog or selector, or unknown selected
+profile fails without choosing another provider. An absent optional catalog
+with no named selection retains legacy behavior.
+
+Commit the non-sensitive catalog and any intended catalog default. Add
+`.agent-profile` (or your custom state path) and `agent-profiles.json.lock/` to
+the project's `.gitignore`. Selection writes use a temporary file in the same
+directory and atomic rename. Concurrent switches leave one complete selection;
+last successful replacement wins. Capture serializes catalog edits with a local
+directory lock; retry after a competing capture finishes. If interrupted, remove
+a leftover lock only after confirming that no capture is running.
+
+Setup/update deliver and checksum the **example** catalog, helper and modules;
+they do not create or replace the active catalog or selection. Repeated setup
+also preserves existing config. The saved selection is local to that config
+location, not a global account preference. Both interactive clients, standalone
+Actions and reference Actions agree when pointed at the same config/state.
+Other runners need the catalog/default distributed or an explicit selector.
+Queued runs read selection when dispatch preflight starts. Already preflighted
+runs retain the frozen profile and phase settings despite subsequent file edits.
+There is no quota polling, automatic fallback, account switch or paid API
+substitution.

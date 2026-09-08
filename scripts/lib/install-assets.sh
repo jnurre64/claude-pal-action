@@ -14,6 +14,9 @@ list_install_assets() {
             printf '%s\0' "${file#"$root/"}"
         done < <(find "$root/$directory" -type f -print0 | sort -z)
     done
+    if [ -f "$root/agent-profiles.example.json" ]; then
+        printf '%s\0' agent-profiles.example.json
+    fi
     if [ -f "$root/labels.txt" ]; then
         printf '%s\0' labels.txt
     fi
