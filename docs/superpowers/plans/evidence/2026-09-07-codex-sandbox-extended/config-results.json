@@ -1,0 +1,81 @@
+{
+  "fixture_root": "/tmp/codex-config-proof-kzhyrqm_",
+  "results": [
+    {
+      "name": "ignored malformed user config",
+      "exit_code": 1,
+      "observation_verified": true,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\nError: Model provider `sp-proof-missing-provider` not found\n"
+    },
+    {
+      "name": "malformed user config control",
+      "exit_code": 1,
+      "observation_verified": true,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\nError loading config.toml:\n/tmp/codex-config-proof-kzhyrqm_/home/.codex/config.toml:1:12: unclosed array, expected `]`\n  |\n1 | invalid = [\n  |            ^\n"
+    },
+    {
+      "name": "project config despite ignore-user-config",
+      "exit_code": 1,
+      "observation_verified": true,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\nError: Model provider `sp-proof-missing-provider` not found\n"
+    },
+    {
+      "name": "explicit approval overrides project value",
+      "exit_code": 1,
+      "observation_verified": true,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\nError: Model provider `sp-proof-missing-provider` not found\n"
+    },
+    {
+      "name": "malformed project config despite ignore-user-config",
+      "exit_code": 1,
+      "observation_verified": true,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\nError: Model provider `sp-proof-missing-provider` not found\n"
+    },
+    {
+      "name": "trusted malformed project control",
+      "exit_code": 1,
+      "observation_verified": true,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\nError loading config.toml: Error parsing project config file /tmp/codex-config-proof-kzhyrqm_/workspace/.codex/config.toml: TOML parse error at line 1, column 12\n  |\n1 | invalid = [\n  |            ^\nunclosed array, expected `]`\n\n"
+    },
+    {
+      "name": "trusted malformed project with ignore-user-config",
+      "exit_code": 1,
+      "observation_verified": true,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\nError: Model provider `sp-proof-missing-provider` not found\n"
+    },
+    {
+      "name": "trusted project invalid approval control",
+      "exit_code": 1,
+      "observation_verified": true,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\nError loading config.toml: unknown variant `sp-proof-invalid`, expected one of `untrusted`, `on-failure`, `on-request`, `granular`, `never`\nin `approval_policy`\n\n"
+    },
+    {
+      "name": "MCP config listing: None",
+      "exit_code": 0,
+      "observation_verified": true,
+      "output": "[\n  {\n    \"name\": \"synthetic_project\",\n    \"enabled\": true,\n    \"disabled_reason\": null,\n    \"transport\": {\n      \"type\": \"stdio\",\n      \"command\": \"/sp-proof-never-execute\",\n      \"args\": [],\n      \"env\": null,\n      \"env_vars\": [],\n      \"cwd\": null\n    },\n    \"startup_timeout_sec\": null,\n    \"tool_timeout_sec\": null,\n    \"auth_status\": \"unsupported\"\n  },\n  {\n    \"name\": \"synthetic_user\",\n    \"enabled\": true,\n    \"disabled_reason\": null,\n    \"transport\": {\n      \"type\": \"stdio\",\n      \"command\": \"/sp-proof-never-execute\",\n      \"args\": [],\n      \"env\": null,\n      \"env_vars\": [],\n      \"cwd\": null\n    },\n    \"startup_timeout_sec\": null,\n    \"tool_timeout_sec\": null,\n    \"auth_status\": \"unsupported\"\n  }\n]\n",
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\n"
+    },
+    {
+      "name": "MCP config listing: mcp_servers={}",
+      "exit_code": 0,
+      "observation_verified": true,
+      "output": "[\n  {\n    \"name\": \"synthetic_project\",\n    \"enabled\": true,\n    \"disabled_reason\": null,\n    \"transport\": {\n      \"type\": \"stdio\",\n      \"command\": \"/sp-proof-never-execute\",\n      \"args\": [],\n      \"env\": null,\n      \"env_vars\": [],\n      \"cwd\": null\n    },\n    \"startup_timeout_sec\": null,\n    \"tool_timeout_sec\": null,\n    \"auth_status\": \"unsupported\"\n  },\n  {\n    \"name\": \"synthetic_user\",\n    \"enabled\": true,\n    \"disabled_reason\": null,\n    \"transport\": {\n      \"type\": \"stdio\",\n      \"command\": \"/sp-proof-never-execute\",\n      \"args\": [],\n      \"env\": null,\n      \"env_vars\": [],\n      \"cwd\": null\n    },\n    \"startup_timeout_sec\": null,\n    \"tool_timeout_sec\": null,\n    \"auth_status\": \"unsupported\"\n  }\n]\n",
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\n"
+    },
+    {
+      "name": "MCP config listing: mcp_servers.synthetic_user.enabled=false",
+      "exit_code": 0,
+      "observation_verified": true,
+      "output": "[\n  {\n    \"name\": \"synthetic_project\",\n    \"enabled\": true,\n    \"disabled_reason\": null,\n    \"transport\": {\n      \"type\": \"stdio\",\n      \"command\": \"/sp-proof-never-execute\",\n      \"args\": [],\n      \"env\": null,\n      \"env_vars\": [],\n      \"cwd\": null\n    },\n    \"startup_timeout_sec\": null,\n    \"tool_timeout_sec\": null,\n    \"auth_status\": \"unsupported\"\n  },\n  {\n    \"name\": \"synthetic_user\",\n    \"enabled\": false,\n    \"disabled_reason\": null,\n    \"transport\": {\n      \"type\": \"stdio\",\n      \"command\": \"/sp-proof-never-execute\",\n      \"args\": [],\n      \"env\": null,\n      \"env_vars\": [],\n      \"cwd\": null\n    },\n    \"startup_timeout_sec\": null,\n    \"tool_timeout_sec\": null,\n    \"auth_status\": \"unsupported\"\n  }\n]\n",
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\n"
+    },
+    {
+      "name": "MCP config listing: mcp_servers.synthetic_project.enabled=false",
+      "exit_code": 0,
+      "observation_verified": true,
+      "output": "[\n  {\n    \"name\": \"synthetic_project\",\n    \"enabled\": false,\n    \"disabled_reason\": null,\n    \"transport\": {\n      \"type\": \"stdio\",\n      \"command\": \"/sp-proof-never-execute\",\n      \"args\": [],\n      \"env\": null,\n      \"env_vars\": [],\n      \"cwd\": null\n    },\n    \"startup_timeout_sec\": null,\n    \"tool_timeout_sec\": null,\n    \"auth_status\": \"unsupported\"\n  },\n  {\n    \"name\": \"synthetic_user\",\n    \"enabled\": true,\n    \"disabled_reason\": null,\n    \"transport\": {\n      \"type\": \"stdio\",\n      \"command\": \"/sp-proof-never-execute\",\n      \"args\": [],\n      \"env\": null,\n      \"env_vars\": [],\n      \"cwd\": null\n    },\n    \"startup_timeout_sec\": null,\n    \"tool_timeout_sec\": null,\n    \"auth_status\": \"unsupported\"\n  }\n]\n",
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-config-proof-kzhyrqm_/home/.codex\"))\n"
+    }
+  ]
+}

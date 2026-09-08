@@ -1,0 +1,213 @@
+{
+  "cli_version": "codex-cli 0.153.4",
+  "fixture_root": "/tmp/codex-extended-proof-qntmc_wr",
+  "results": [
+    {
+      "name": "root instruction unlink",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": true,
+        "errno": 16
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "root instruction atomic replacement",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": true,
+        "errno": 16
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "protected directory rename",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": true,
+        "errno": 16
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "hardlink protected inode into writable source",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": true,
+        "errno": 18
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "pre-existing hardlink alias to protected instruction",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": false
+      },
+      "root_instruction_unchanged": false,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": false
+    },
+    {
+      "name": "pre-existing hardlink with both paths protected",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": true,
+        "errno": 30
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "nested instruction with root-only policy",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": false
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": false,
+      "boundary_enforced": false
+    },
+    {
+      "name": "nested instruction with exact policy",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": true,
+        "errno": 30
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "nested parent replacement with exact policy",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": false
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": false,
+      "boundary_enforced": false
+    },
+    {
+      "name": "nested parent rename and instruction replacement",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": false
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": false,
+      "boundary_enforced": false
+    },
+    {
+      "name": "explicit writable parent mount replacement",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": true,
+        "errno": 16
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "absent nested instruction creation",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": false
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": false
+    },
+    {
+      "name": "absent nested instruction exact policy",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": true,
+        "errno": 30
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "new directory instruction creation",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": false
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": false
+    },
+    {
+      "name": "nested read glob",
+      "process_exit_code": 1,
+      "observation": {},
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": false,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-extended-proof-qntmc_wr/home/.codex\"))\nError: filesystem glob path `**/AGENTS.md` only supports `deny` access; use an exact path or trailing `/**` for `read` subtree access\n"
+    },
+    {
+      "name": "deny glob existing instruction write",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": true,
+        "errno": 30
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "deny glob new directory instruction creation",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": false
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": false
+    },
+    {
+      "name": "credential environment inheritance",
+      "process_exit_code": 1,
+      "observation": {},
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": false,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-extended-proof-qntmc_wr/home/.codex\"))\nTraceback (most recent call last):\n  File \"<string>\", line 4, in <module>\n  File \"<string>\", line 1, in <module>\nAssertionError\n"
+    },
+    {
+      "name": "credential removed by launcher",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": false
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": true
+    },
+    {
+      "name": "arbitrary command in filesystem sandbox",
+      "process_exit_code": 0,
+      "observation": {
+        "denied": false
+      },
+      "root_instruction_unchanged": true,
+      "nested_instruction_unchanged": true,
+      "boundary_enforced": false
+    }
+  ]
+}

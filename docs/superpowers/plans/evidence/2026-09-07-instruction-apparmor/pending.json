@@ -1,0 +1,10 @@
+{
+  "state": "profile_unavailable",
+  "profile": "sp116-apparmor-zo7gjn9f-strict",
+  "startup": {
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "[885384] aa-exec: ERROR: profile 'sp116-apparmor-zo7gjn9f-strict' does not exist\n",
+    "timed_out": false
+  }
+}

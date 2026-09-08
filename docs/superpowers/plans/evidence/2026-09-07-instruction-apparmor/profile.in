@@ -1,0 +1,20 @@
+# EXPERIMENT ONLY. No executable attachment and no persistent installation.
+# Loaded names are selected explicitly by aa-exec for disposable fixture children.
+# Broad allows deliberately isolate filename protection from other engine policy.
+profile @NAME@ flags=(attach_disconnected,mediate_deleted) {
+  /** rwklmix,
+  network,
+  unix,
+  signal,
+  ptrace peer=@NAME@,
+  # Variant-specific native sandbox support:
+  @NAMESPACE_RULES@
+
+  # Dynamic filename matching, including paths created after profile loading.
+  deny /**/[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd] wkl,
+  deny /**/[Cc][Ll][Aa][Uu][Dd][Ee].[Mm][Dd] wkl,
+  # Pin existing protected parents without denying writes to ordinary children.
+  deny @ROOT@/ w,
+  deny @ROOT@/workspace/ w,
+  deny @ROOT@/workspace/src/ w,
+}

@@ -1,0 +1,147 @@
+{
+  "fixture": "/tmp/sp116-native-instructions-spdylcov",
+  "component": "/tmp/sp116-native-srt/node_modules/@anthropic-ai/sandbox-runtime/dist/cli.js",
+  "baseline": true,
+  "results": [
+    {
+      "case": "source_edit",
+      "expected_denied": false,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "case": "instruction_read",
+      "expected_denied": false,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "case": "root_write",
+      "expected_denied": true,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": false,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "case": "nested_write",
+      "expected_denied": true,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": true,
+      "nested_unchanged": false,
+      "new_instruction_absent": true,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "case": "symlink_write",
+      "expected_denied": true,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": false,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "case": "hardlink_write",
+      "expected_denied": true,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": false,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "case": "root_unlink",
+      "expected_denied": true,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": false,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "case": "parent_replacement",
+      "expected_denied": true,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": true,
+      "nested_unchanged": false,
+      "new_instruction_absent": true,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "case": "new_instruction",
+      "expected_denied": true,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": false,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "case": "new_source_directory",
+      "expected_denied": false,
+      "started": true,
+      "observation": {
+        "operation_allowed": true
+      },
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": true,
+      "exit_code": 0,
+      "stderr": ""
+    }
+  ]
+}
