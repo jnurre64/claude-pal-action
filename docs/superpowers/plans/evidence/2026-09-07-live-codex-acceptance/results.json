@@ -1,0 +1,42 @@
+{
+  "repo": "Frightful-Games/recipe-manager-demo",
+  "issue": 37,
+  "pr": 38,
+  "head": "c61d09a758103389626215b30cb4afebc14007db",
+  "engine": "codex",
+  "human_plan_approved": true,
+  "first_implementation": {
+    "outcome": "agent:failed",
+    "reason": "Native sandbox denied linked-worktree Git metadata writes"
+  },
+  "retry": {
+    "event": "implement",
+    "repo": "Frightful-Games/recipe-manager-demo",
+    "issue": "37",
+    "outcome": "agent:pr-open",
+    "exit_code": 0,
+    "pr_url": "https://github.com/Frightful-Games/recipe-manager-demo/pull/38",
+    "started": "2026-09-07T23:03:35Z",
+    "finished": "2026-09-07T23:06:29Z"
+  },
+  "adversarial_plan": "approved",
+  "post_implementation_review": "approved",
+  "pre_pr_test_gate": "passed",
+  "final_head_tests": {
+    "passed": 15,
+    "failed": 0,
+    "skipped": 0
+  },
+  "ci": {
+    "run": 34168892170,
+    "conclusion": "failure",
+    "reason": "Runner SDK path /home/jonny/.dotnet/dotnet does not exist; tests never started"
+  },
+  "runtime_validation": {
+    "bats_passed": 528,
+    "shellcheck": "passed"
+  },
+  "claude_smoke": "rate_limit",
+  "hybrid_acceptance": "deferred; Claude subscription capacity unavailable",
+  "merged": false
+}

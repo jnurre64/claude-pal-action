@@ -2,6 +2,66 @@
 
 This document covers how to tailor sandbox-pal-action for your specific project: custom prompts, extra tools, test gates, shared memory, and project conventions.
 
+## Shared orchestration skills in standalone projects
+
+Standalone `scripts/setup.sh` and `scripts/update.sh` install `sp-work`,
+`sp-status`, `sp-revise`, and `sp-post-merge` under
+`.sandbox-pal-dispatch/.claude/skills/`. These are regular files in the existing
+asset inventory, with upstream checksums and customization review on updates.
+The installers expose them through relative directory links in both the project's
+`.claude/skills/` and `.agents/skills/`. Commit those links with the installed
+assets; they remain valid when the consuming repository moves.
+
+Existing client skill entries, including dangling links, are preserved and
+reported. Symlinked client directories are preserved without writing through
+them. Resolve a reported conflict manually if you want that client to use the
+installed shared skill. Editing a skill through a managed link edits its installed
+source; subsequent updates treat that edit as a local customization. Skills
+deferred during an update receive no discovery links until installed.
+
+The installers do not create or replace the consuming project's `AGENTS.md` or
+`CLAUDE.md`. Keep project-specific build commands and conventions there. The four
+shared skills contain the dispatch instructions and approval gates; the toolkit's
+own repository development instructions are not suitable consumer defaults.
+Use `$sp-work`, `$sp-status`, `$sp-revise`, or `$sp-post-merge` from Codex and the
+corresponding slash commands from Claude Code. Client choice does not select a
+worker engine; Claude remains the default worker.
+
+Automatic discovery links apply only to the standard `.sandbox-pal-dispatch`
+installation directory, which the shared skills use to locate the dispatcher.
+Reference-mode and custom-location installations use the explicit command below.
+Workflow templates remain reference assets during updates; review
+and apply relevant changes to `.github/workflows/` while preserving local filters.
+
+### Connect a reference or custom runtime
+
+Run the following from the toolkit checkout or an updated runtime installation:
+
+```bash
+bash scripts/link-client-skills.sh /path/to/consumer /path/to/runtime
+export AGENT_CONFIG=/absolute/path/to/project/config.env
+```
+
+The runtime must already contain its dispatch script and all four shared skills.
+The command creates a relative `.sandbox-pal-dispatch` link in the consumer and
+the same client discovery links used by standalone setup. It refuses an existing
+installation pointing elsewhere and preserves custom client skills. It does not
+copy credentials, modify project instructions, dispatch workers or create workflows.
+
+For a runtime inside the consumer (for example `tools/worker-runtime`), commit the
+runtime and links together; moving the whole repository preserves them. An external
+reference runtime is local machine configuration: keep the `.sandbox-pal-dispatch`
+link local and recreate it on another machine. For a Git checkout, a local entry
+in `.git/info/exclude` can keep that runtime link out of commits. The client skill
+links still require that local runtime link to resolve.
+
+Update the runtime at its existing location with its existing update mechanism.
+Both clients immediately see updated canonical skill files; rerun the linking
+command to repair missing discovery links. `AGENT_CONFIG` must select the intended
+project's configuration before interactive dispatch. Linking does not relocate
+the runtime's state or change lock configuration. GitHub Actions reference callers
+continue using their configured runner `dispatch_script` and `config_path`.
+
 ## Customizing Prompts
 
 ### When to Customize

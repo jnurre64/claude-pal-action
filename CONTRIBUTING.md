@@ -25,8 +25,9 @@ Thanks for your interest in contributing to sandbox-pal-action!
 Codex project guidance starts in [AGENTS.md](AGENTS.md); Claude Code continues
 to use [CLAUDE.md](CLAUDE.md) and `.claude/`. Codex discovers the shared
 orchestration skills through `.agents/skills/`. Those skills invoke the existing
-pipeline, whose workers currently run Claude Code. Codex worker support is
-tracked in [issue #116](https://github.com/jnurre64/sandbox-pal-action/issues/116).
+pipeline, whose workers default to Claude Code. Codex and mixed phases use the
+engine settings in [the configuration reference](docs/configuration.md). Work on
+this integration is tracked in [issue #116](https://github.com/jnurre64/sandbox-pal-action/issues/116).
 
 ### Code style
 

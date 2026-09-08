@@ -1,0 +1,481 @@
+{
+  "fixture": "/tmp/sp116-cli-integration-mkpb5wr9",
+  "codex": "/home/jonny/.codex/packages/standalone/releases/0.153.4-x86_64-unknown-linux-musl/bin/codex",
+  "all_passed": true,
+  "results": [
+    {
+      "case": "review",
+      "exit_code": 0,
+      "envelope": {
+        "version": 1,
+        "engine": "codex",
+        "phase": "POST_IMPL_REVIEW",
+        "process_exit_code": 0,
+        "status": "success",
+        "error": null,
+        "result_text": "{\"action\":\"approved\",\"verified_fixed\":[],\"reopened\":[],\"findings\":[]}",
+        "structured_output": {
+          "action": "approved",
+          "verified_fixed": [],
+          "reopened": [],
+          "findings": []
+        },
+        "schema_status": "valid",
+        "permission_denials": [],
+        "denials_available": false,
+        "usage": {
+          "input_tokens": 7,
+          "output_tokens": 3,
+          "cached_input_tokens": 0
+        },
+        "cost_usd": null
+      },
+      "stderr": "[2026-09-07 17:23:25] [implement] #116: ADVERSARIAL_PLAN: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:25] [implement] #116: IMPLEMENT: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:26] [implement] #116: POST_IMPL_REVIEW: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:26] [implement] #116: POST_IMPL_RETRY: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:26] [implement] #116: Worker ADVERSARIAL_PLAN: codex model=CLI default\n[2026-09-07 17:23:26] [implement] #116: Worker IMPLEMENT: codex model=CLI default\n[2026-09-07 17:23:26] [implement] #116: Worker POST_IMPL_REVIEW: codex model=CLI default\n[2026-09-07 17:23:26] [implement] #116: Worker POST_IMPL_RETRY: codex model=CLI default\n",
+      "requests": [
+        {
+          "model": "offline-fixture",
+          "schema": {
+            "format": {
+              "type": "json_schema",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "approved",
+                      "concerns"
+                    ]
+                  },
+                  "verified_fixed": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "reopened": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "findings": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "severity": {
+                          "type": "string",
+                          "enum": [
+                            "blocking",
+                            "non-blocking"
+                          ]
+                        },
+                        "description": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "severity",
+                        "description"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "verified_fixed",
+                  "reopened",
+                  "findings"
+                ]
+              },
+              "name": "codex_output_schema"
+            }
+          },
+          "input_count": 3
+        }
+      ],
+      "plan": null,
+      "source_unchanged": true,
+      "capture_files": [
+        "result.json",
+        "stderr.log"
+      ],
+      "passed": true
+    },
+    {
+      "case": "triage",
+      "exit_code": 0,
+      "envelope": {
+        "version": 1,
+        "engine": "codex",
+        "phase": "TRIAGE",
+        "process_exit_code": 0,
+        "status": "success",
+        "error": null,
+        "result_text": "{\"action\": \"plan_ready\"}",
+        "structured_output": {
+          "action": "plan_ready"
+        },
+        "schema_status": "valid",
+        "permission_denials": [],
+        "denials_available": false,
+        "usage": {
+          "input_tokens": 7,
+          "output_tokens": 3,
+          "cached_input_tokens": 0
+        },
+        "cost_usd": null
+      },
+      "stderr": "[2026-09-07 17:23:27] [new_issue] #116: TRIAGE: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:27] [new_issue] #116: Worker TRIAGE: codex model=CLI default\n",
+      "requests": [
+        {
+          "model": "offline-fixture",
+          "schema": {
+            "format": {
+              "type": "json_schema",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "ask_questions",
+                      "plan_ready"
+                    ]
+                  },
+                  "questions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "plan_markdown": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              },
+              "name": "codex_output_schema"
+            }
+          },
+          "input_count": 3
+        }
+      ],
+      "plan": "## Implementation Plan\n\nOffline CLI plan.",
+      "source_unchanged": true,
+      "capture_files": [
+        "result.json",
+        "stderr.log"
+      ],
+      "passed": true
+    },
+    {
+      "case": "invalid_schema",
+      "exit_code": 0,
+      "envelope": {
+        "version": 1,
+        "engine": "codex",
+        "phase": "POST_IMPL_REVIEW",
+        "process_exit_code": 0,
+        "status": "failed",
+        "error": {
+          "kind": "schema",
+          "message": "Configured schema was not satisfied by structured output"
+        },
+        "result_text": "{\"action\":\"not-valid\"}",
+        "structured_output": null,
+        "schema_status": "invalid",
+        "permission_denials": [],
+        "denials_available": false,
+        "usage": {
+          "input_tokens": 7,
+          "output_tokens": 3,
+          "cached_input_tokens": 0
+        },
+        "cost_usd": null
+      },
+      "stderr": "[2026-09-07 17:23:28] [implement] #116: ADVERSARIAL_PLAN: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:28] [implement] #116: IMPLEMENT: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:29] [implement] #116: POST_IMPL_REVIEW: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:29] [implement] #116: POST_IMPL_RETRY: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:29] [implement] #116: Worker ADVERSARIAL_PLAN: codex model=CLI default\n[2026-09-07 17:23:29] [implement] #116: Worker IMPLEMENT: codex model=CLI default\n[2026-09-07 17:23:29] [implement] #116: Worker POST_IMPL_REVIEW: codex model=CLI default\n[2026-09-07 17:23:29] [implement] #116: Worker POST_IMPL_RETRY: codex model=CLI default\n",
+      "requests": [
+        {
+          "model": "offline-fixture",
+          "schema": {
+            "format": {
+              "type": "json_schema",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "approved",
+                      "concerns"
+                    ]
+                  },
+                  "verified_fixed": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "reopened": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "findings": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "severity": {
+                          "type": "string",
+                          "enum": [
+                            "blocking",
+                            "non-blocking"
+                          ]
+                        },
+                        "description": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "severity",
+                        "description"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "verified_fixed",
+                  "reopened",
+                  "findings"
+                ]
+              },
+              "name": "codex_output_schema"
+            }
+          },
+          "input_count": 3
+        }
+      ],
+      "plan": null,
+      "source_unchanged": true,
+      "capture_files": [
+        "result.json",
+        "stderr.log"
+      ],
+      "passed": true
+    },
+    {
+      "case": "quota",
+      "exit_code": 0,
+      "envelope": {
+        "version": 1,
+        "engine": "codex",
+        "phase": "POST_IMPL_REVIEW",
+        "process_exit_code": 1,
+        "status": "failed",
+        "error": {
+          "kind": "quota",
+          "message": "API error: quota exhausted"
+        },
+        "result_text": "",
+        "structured_output": null,
+        "schema_status": "not_checked",
+        "permission_denials": [],
+        "denials_available": false,
+        "usage": {
+          "input_tokens": null,
+          "output_tokens": null,
+          "cached_input_tokens": null
+        },
+        "cost_usd": null
+      },
+      "stderr": "[2026-09-07 17:23:30] [implement] #116: ADVERSARIAL_PLAN: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:30] [implement] #116: IMPLEMENT: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:30] [implement] #116: POST_IMPL_REVIEW: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:31] [implement] #116: POST_IMPL_RETRY: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:31] [implement] #116: Worker ADVERSARIAL_PLAN: codex model=CLI default\n[2026-09-07 17:23:31] [implement] #116: Worker IMPLEMENT: codex model=CLI default\n[2026-09-07 17:23:31] [implement] #116: Worker POST_IMPL_REVIEW: codex model=CLI default\n[2026-09-07 17:23:31] [implement] #116: Worker POST_IMPL_RETRY: codex model=CLI default\n",
+      "requests": [
+        {
+          "model": "offline-fixture",
+          "schema": {
+            "format": {
+              "type": "json_schema",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "approved",
+                      "concerns"
+                    ]
+                  },
+                  "verified_fixed": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "reopened": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "findings": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "severity": {
+                          "type": "string",
+                          "enum": [
+                            "blocking",
+                            "non-blocking"
+                          ]
+                        },
+                        "description": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "severity",
+                        "description"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "verified_fixed",
+                  "reopened",
+                  "findings"
+                ]
+              },
+              "name": "codex_output_schema"
+            }
+          },
+          "input_count": 3
+        }
+      ],
+      "plan": null,
+      "source_unchanged": true,
+      "capture_files": [
+        "result.json",
+        "stderr.log"
+      ],
+      "passed": true
+    },
+    {
+      "case": "timeout",
+      "exit_code": 0,
+      "envelope": {
+        "version": 1,
+        "engine": "codex",
+        "phase": "POST_IMPL_REVIEW",
+        "process_exit_code": 124,
+        "status": "timed_out",
+        "error": {
+          "kind": "transport",
+          "message": "Worker timed out"
+        },
+        "result_text": "",
+        "structured_output": null,
+        "schema_status": "not_checked",
+        "permission_denials": [],
+        "denials_available": false,
+        "usage": {
+          "input_tokens": null,
+          "output_tokens": null,
+          "cached_input_tokens": null
+        },
+        "cost_usd": null
+      },
+      "stderr": "[2026-09-07 17:23:32] [implement] #116: ADVERSARIAL_PLAN: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:32] [implement] #116: IMPLEMENT: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:32] [implement] #116: POST_IMPL_REVIEW: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:32] [implement] #116: POST_IMPL_RETRY: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed.\n[2026-09-07 17:23:32] [implement] #116: Worker ADVERSARIAL_PLAN: codex model=CLI default\n[2026-09-07 17:23:32] [implement] #116: Worker IMPLEMENT: codex model=CLI default\n[2026-09-07 17:23:32] [implement] #116: Worker POST_IMPL_REVIEW: codex model=CLI default\n[2026-09-07 17:23:32] [implement] #116: Worker POST_IMPL_RETRY: codex model=CLI default\n",
+      "requests": [
+        {
+          "model": "offline-fixture",
+          "schema": {
+            "format": {
+              "type": "json_schema",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "approved",
+                      "concerns"
+                    ]
+                  },
+                  "verified_fixed": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "reopened": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "findings": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "severity": {
+                          "type": "string",
+                          "enum": [
+                            "blocking",
+                            "non-blocking"
+                          ]
+                        },
+                        "description": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "severity",
+                        "description"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "verified_fixed",
+                  "reopened",
+                  "findings"
+                ]
+              },
+              "name": "codex_output_schema"
+            }
+          },
+          "input_count": 3
+        }
+      ],
+      "plan": null,
+      "source_unchanged": true,
+      "capture_files": [
+        "result.json",
+        "stderr.log"
+      ],
+      "passed": true
+    }
+  ]
+}

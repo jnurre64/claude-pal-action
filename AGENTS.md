@@ -32,9 +32,11 @@ Key references: `CONTRIBUTING.md`, `docs/architecture.md`,
 ## Interactive client and worker engines
 
 Codex can develop this repository and invoke the orchestrator shell interface.
-The current worker implementation still executes Claude Code. Changing
-`AGENT_MODEL` does not select a different engine. See issue #116 and
-`docs/superpowers/plans/2026-09-07-codex-worker-engine.md` for the proposed adapter.
+Claude Code remains the default worker; Codex is selected with `AGENT_ENGINE`
+or per-phase engine overrides. Changing `AGENT_MODEL` alone does not select a
+different engine. See `docs/configuration.md` for native settings and capability
+differences. Absolute instruction-file prevention is deferred hardening; preserve
+the existing Claude workflow and all shared review/test gates.
 
 `.agents/skills/` exposes the existing `sp-work`, `sp-status`, `sp-revise`, and
 `sp-post-merge` orchestration skills through relative links to `.claude/skills/`.

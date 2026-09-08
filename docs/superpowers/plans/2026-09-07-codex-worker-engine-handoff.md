@@ -1,9 +1,332 @@
 # Issue 116 implementation handoff
 
+**Current operator direction — match the working Claude integration.** The user
+explicitly instructed us to preserve Claude behavior and use it as the compatibility
+baseline. Absolute instruction-file prevention and hostile-process containment are
+deferred hardening, not Codex enablement prerequisites. This supersedes historical
+closed-gate/protection requirements throughout the older records below. Do not
+reopen those scope questions or revive the retired broker/AppArmor work.
+
+**Current implementation:** Read the
+[Claude compatibility baseline record](2026-09-07-codex-worker-engine-claude-parity.md).
+Claude stays default; explicit Codex/per-phase selection now uses the production
+adapter without a special gate or extra native-policy opt-in. Native wire-schema
+compatibility is fixed without changing Claude's schemas, adapter or defaults.
+Five actual-CLI no-model checks pass on that production path. Shared human/review/
+test/recovery gates remain. Real-provider Codex smoke and live triage have passed;
+the user approved #37 and the all-Codex pipeline opened PR #38. The operator approved a 30-minute subscription
+acceptance session, not a phase timeout change. No production config or login changed.
+All 530 BATS tests and ShellCheck pass, including Git metadata and PR reporting
+regressions. Final local log: `/tmp/codex-pr-report-final.log` (existing BW01 only).
+Five earlier actual-CLI no-model checks also passed.
+Runtime and client delivery are committed as `ec0e471` and `6f835c6`;
+PR reporting and current/historical documentation are separate review commits
+on this branch. Retired experiments are archival evidence, not installed assets.
+
+**Pre-acceptance review:** [Review and run preparation](2026-09-07-codex-worker-engine-preacceptance-review.md)
+records a schema-disabled triage fix, 527 passing tests, and verified WRITE access
+to the exact demo repository using the intended ignored PAT.
+[Live acceptance](2026-09-07-codex-worker-engine-live-acceptance.md) records the
+authorized session (22:47:54–23:17:54 UTC) and successful all-Codex pipeline after
+fixing linked-worktree Git metadata write access through native `--add-dir`.
+[PR #38](https://github.com/Frightful-Games/recipe-manager-demo/pull/38) is open,
+unmerged; both independent reviews approved and all 15 final-head tests passed.
+GitHub CI remains red because its runner lacks the configured .NET SDK; no tests
+started there. Claude subscription rate limits defer both hybrid acceptance runs.
+No billed API substitution. Generated PR descriptions now use engine-neutral
+attribution, report passed/disabled/unresolved dispatcher gates, and label the
+worker report as captured before those gates and PR creation. Regression tests
+cover both engines and disabled/unresolved gates.
+
+Recipe Manager [draft PR #39](https://github.com/Frightful-Games/recipe-manager-demo/pull/39)
+repairs CI separately by provisioning .NET 9 with setup-dotnet in the runner's
+temporary directory. It does not alter #38's test-only scope. Nothing is merged.
+The initial workflow validation failure (runner context at job-env level) was
+fixed by moving the install-directory setting into the setup step.
+[CI run 34174370640](https://github.com/Frightful-Games/recipe-manager-demo/actions/runs/34174370640)
+passed SDK setup, restore, build and tests. Review/merge #39 before updating #38
+with main and rerunning its CI; neither PR is merged automatically.
+No additional approval is needed for the already-approved #37 plan. The original
+subscription acceptance window has ended; no additional model sessions were run
+while preparing these changes for review.
+
+## Historical milestones (current direction above takes precedence)
+
+**Historical milestone — actual-CLI no-model adapter checks:** Read the
+[CLI integration evidence](evidence/2026-09-07-codex-cli-integration/README.md).
+Five actual Codex CLI cases pass through production preflight/adapters: review,
+triage plan publication, schema-invalid output, quota error and stalled-response
+timeout. A scripted loopback service provides responses without inference. This
+validates CLI/adapter integration, not real-provider schemas, tool enforcement,
+research, hostile process containment or complete GitHub pipelines. No runtime
+files changed; Codex remains disabled. All evidence is local and uncommitted.
+
+**Previous milestone — workflow/reference/custom-install delivery:** Read the
+[delivery completion record](2026-09-07-codex-worker-engine-delivery-completion.md).
+An explicit client-linking command now connects reference/custom runtimes while
+preserving project entries. The distributed configuration example lists all phase
+engine/model choices; workflows use the existing shared config-file mechanism.
+Most local integration code is implemented. Instruction prevention, actual-CLI
+integration/operational proof and separately authorized live acceptance remain
+substantive release gates. Prerequisites, ShellCheck and all 525 BATS tests pass.
+Codex stays disabled; all changes remain uncommitted.
+
+**Previous checkpoint — native instruction prevention blocker:** Read the
+[native instruction decision](evidence/2026-09-07-native-instruction-decision/README.md).
+Current documentation does not establish the required cross-engine filename
+protection. A new pinned Anthropic sandbox-runtime component probe passes all
+10 unconfined controls, but all confined cases fail before command startup; that
+is unavailable enforcement, not successful protection or an actual Claude session
+result. Prior Codex alias/new-file failures remain applicable. Keep Codex disabled.
+Do not repeat unchanged native probes or reopen the withdrawn AppArmor load request.
+Continue independent workflow/reference/custom-install delivery while prevention
+remains a release blocker. No runtime files, host policy or authentication changed.
+
+**Previous milestone — native configuration compatibility:** Read the
+[configuration compatibility record](2026-09-07-codex-worker-engine-configuration.md).
+`AGENT_CODEX_USE_NATIVE_POLICY=true` explicitly scopes legacy Claude tool lists,
+MCP configuration and turn caps to Claude while Codex uses native policy. Mock
+hybrid tests retain real Claude defaults. Dollar budgets and permission modes
+assigned to Codex phases still fail closed. The code-defined release gate remains
+closed; instruction prevention and live acceptance are unresolved. Prerequisites,
+ShellCheck and all 520 BATS tests pass; all changes remain local and uncommitted.
+
+**Previous milestone — standalone client skill delivery:** Read the
+[client delivery record](2026-09-07-codex-worker-engine-client-delivery.md).
+Standalone setup/update now ship the four shared orchestration skills as
+checksummed assets and expose them through portable Claude/Codex discovery links.
+Existing project skills and instructions are preserved. Reference/custom install
+locations, workflow engine settings, configuration compatibility and instruction
+prevention remain release work. Codex stays disabled; no live workers were run.
+Prerequisites, ShellCheck and all 516 BATS tests pass. All changes remain local
+and uncommitted.
+
+**Previous milestone — phase integration:** Read the
+[phase integration record](2026-09-07-codex-worker-engine-phase-integration.md).
+Codex is now wired through dispatch preflight and `run_agent` behind a closed,
+code-defined release gate. Native phase roles, frozen policy/model/schema state,
+shared task context, and harness-side triage plan publication are implemented.
+Both hybrid directions and the existing review failure path have mock coverage.
+Public Claude-tool configuration compatibility and instruction protection remain
+release work; no Codex worker is enabled. AppArmor/broker work remains parked.
+Final validation: prerequisites, ShellCheck and all 513 BATS tests pass. All changes
+remain local and uncommitted.
+
+**Previous implementation milestone:** [native controls audit and Codex result parser](2026-09-07-codex-worker-engine-native-controls.md).
+The native Codex recheck reproduced instruction-protection gaps; Claude defaults
+also do not explicitly enforce the requested instruction policy. The new Codex
+JSONL normalizer is implemented and tested independently, but no invocation adapter
+or Codex enablement is claimed. Prerequisites, ShellCheck and all 490 BATS tests
+pass for this milestone. Start with this record before older checkpoints.
+
+**Latest scope — native integration:** The operator requested a simpler,
+standard Claude/Codex workflow with research and mixed-phase engines. The
+[simplicity review](2026-09-07-codex-worker-engine-simplicity-review.md#updated-scope-ordinary-engine-compatibility)
+supersedes the custom-enforcement implementation order and enablement gates below.
+The broker, MCP shim, source staging and custom outer sandbox are retired from the
+production proposal; their files remain historical evidence. Standard authentication,
+Claude defaults and all review gates remain. Both scope questions are settled:
+workers must not edit `AGENTS.md` or `CLAUDE.md`; they suggest updates to the
+orchestrator, which can apply them or request review. Use native research controls
+and preserve project settings, without a new phase-specific access system initially.
+Instruction-file prevention still needs verification in both engines. Do not enable
+Codex until the required native policy and adapter are verified; report unsupported
+protection explicitly rather than restarting the retired custom architecture.
+
+
 Prepared 2026-09-07. This file transfers the approved design and local work to a
 fresh session. Continue from the committed milestones on the existing branch.
 
-## Current handoff checkpoint
+## Historical handoff checkpoint — clarified implementation scope
+
+This checkpoint and the [simplicity review](2026-09-07-codex-worker-engine-simplicity-review.md)
+are authoritative over the historical continuation instructions below. Both
+operator questions have been answered; do not ask them again.
+
+### Decisions to carry forward
+
+- Standard authentication only, using each engine's existing supported login/store.
+  No relay, copied credential store or custom refresh implementation.
+- Workers cannot edit `AGENTS.md` or `CLAUDE.md`, including nested copies and case
+  variants. They submit improvement suggestions to the orchestrator for application
+  within its authority or further review. Detection/reversion alone is not prevention.
+- Allow research through native engine controls, preserving existing project settings.
+  No blanket research/network ban and no new phase-specific access system initially.
+  Preserve secret handling; retrieved content remains untrusted input.
+- Use native editing and existing worktrees. Broker, MCP shim, source staging and
+  custom outer-sandbox prototypes remain historical evidence, not production work.
+- Preserve Claude defaults, first-release per-phase engine/model selection, human
+  plan approval, fresh adversarial plan/post-implementation reviews, test gates,
+  locks, heartbeats, recovery and semantic outcomes. Interactive client selection
+  remains independent of worker engine selection.
+
+### Next items to implement, in order
+
+1. **Resolve instruction protection using the smallest supported native mechanism.**
+   Read the extended native-profile evidence before repeating probes. Audit both
+   Claude and Codex: do not infer that Claude's current tool configuration enforces
+   the new requirement. Test protected files at root and nested paths, aliases,
+   deletion/parent replacement and new instruction creation, alongside permitted
+   source edits and research controls. Treat native tools and shell paths separately.
+   If prevention is unsupported, document the exact gap and smallest additional
+   option for operator review. Do not silently substitute post-run diff checks,
+   restore the custom broker, or change existing Claude defaults. This unresolved
+   implementation constraint is not another unanswered preference question.
+2. **Implement the Codex adapter behind the existing disabled gate.** Inspect current
+   installed CLI capabilities and supported configuration; use standard authentication
+   and native settings. Add invocation, JSONL/final-result normalization, schema
+   validation, auth/configuration diagnostics, unique scrubbed captures, and timeout/
+   process-tree cleanup to the existing neutral interface. Return suggested instruction
+   improvements through existing findings/artifacts; keep application with the
+   orchestrator. Preserve explicitly configured policies; explain unsupported settings.
+   Adapter/result work can proceed while protection remains under investigation.
+3. **Integrate preflight and mixed-phase behavior.** Validate only reachable engines,
+   retain engine-specific model resolution, and keep author/reviewer contexts fresh.
+   Test Claude-only, Codex-only, Claude implementation/Codex review and the reverse.
+   Verify research remains usable under the selected native settings. Enable Codex
+   only after its required protection and adapter behavior pass; no automatic fallback.
+4. **Finish portable delivery and migration.** Ship adapter dependencies, instructions,
+   shared skills and workflow settings through the existing setup/update inventory.
+   Preserve consuming projects' customizations, Claude entry points and lock locations.
+   Explain meaningful engine capability differences without a new permission DSL.
+5. **Validate, then perform separately authorized live acceptance.** For shell/runtime
+   changes run prerequisites, ShellCheck and all BATS tests; use no-model fixtures
+   for policy/adapter behavior first. Use `Frightful-Games/recipe-manager-demo` and
+   the intended existing ignored PAT context for live acceptance, after verifying
+   access and obtaining the still-unset paid-run time/spend ceiling. Do not substitute
+   a similarly named repository or change Webber production or its stopped loop.
+
+### Checkout and validation state
+
+Branch: `feat/116-codex-worker-engine`. Engine/model preflight is committed as
+`5b7fb8a`; neutral Claude results and asset delivery are also committed. Codex is
+still refused by the shared code-defined release gate. The native adapter,
+phase integration and standalone client skill delivery are implemented locally;
+read the latest records above for current details. Runtime changes, plans and
+extended/broker evidence are uncommitted (some files are untracked); preserve them. No push,
+worker dispatch, production change or authentication change accompanied this handoff.
+
+The earlier full runtime result was 481 passing BATS tests plus ShellCheck; it is
+historical, not validation of a future adapter. This clarification changes only
+documentation: check local links and `git diff --check`. The temporary validation
+PATH and runner prerequisite evidence appear below. Recheck their availability
+before runtime work; do not rerun custom broker experiments as release gates.
+
+## Historical checkpoint — standard authentication and broker experiments
+
+**Operator direction — standard authentication and simplicity:** Read the
+[simplicity review](2026-09-07-codex-worker-engine-simplicity-review.md) before proceeding. Use standard Codex authentication
+and its normal credential store/location; leave loading and refresh to Codex.
+No custom relay/proxy, token store or refresh implementation unless the operator
+explicitly requests it. Credential access by the trusted CLI is allowed; verify
+isolation from model-accessible tools and repository/test processes.
+
+The custom broker, outer sandbox and source-export prototypes are experiments,
+not required production architecture. Reassess the smallest enforceable design
+using standard CLI facilities and the existing worktree lifecycle before expanding
+them. The recent prototypes are not referenced by the dispatcher or installer.
+This decision supersedes separate-authentication-transport requirements in the
+historical checkpoints below. Codex remains disabled and all review gates remain.
+
+Latest continuation: [actual CLI adversarial calls and external broker](evidence/2026-09-07-codex-broker/adversarial-continuation.md)
+are now implemented as offline evidence. Sixteen hostile calls were denied across
+synthetic and `gpt-5.4` metadata. `gpt-5.4` still exposes direct patching, which
+native read-only policy blocks. Two image-read controls fail nested namespace
+startup; do not call them passing read checks.
+
+Twelve actual CLI calls reached the harness-owned broker through an explicitly
+configured MCP shim and bounded JSON-lines channel. Implementation can make
+permitted edits; a fresh review phase cannot. The worker source is exported into
+a separate tree with known config/credential paths omitted; the allowed candidate
+diff is validated against a harness-owned manifest. Separate test children cannot
+reach the live broker socket. Twenty-four portable behavior tests pass.
+
+Four synthetic user/project MCP startup controls match. The hook positive control
+did not execute, so **hook isolation is not proven**; its scored probe exits 1.
+Plugin/managed hook coverage, standard-authentication isolation, production source
+selection/import, phase artifacts and complete process/resource supervision remain
+pending. The adapter remains disabled. Continue from the linked record, not the
+initial advertised-tool-only checkpoint below. The broker route requires actual
+`tool_search` discovery and a namespaced MCP call, plus authorization of exactly
+that broker tool; global approval policy and native sandbox remain restrictive.
+
+Validation for this continuation: 24 Python tests, the actual-CLI/broker probes,
+Python syntax, evidence consistency, local links and `git diff --check` pass with
+the explicit native-read/hook limitations above. Installed runtime files are
+unchanged; the 481 BATS/ShellCheck result below is from the prior continuation and
+was not rerun for these experimental evidence modules. Everything remains
+uncommitted. No model inference, real credentials, GitHub mutations, runner changes,
+pushes or personal authentication changes occurred.
+
+### Previous checkpoint — initial broker prototype
+
+Continuation: the [harness-controlled broker spike](evidence/2026-09-07-codex-broker/README.md)
+now has a working offline prototype, 10 behavioral tests and 36 matching host
+observations (including controls, not 36 release isolation boundaries). Read-only
+source plus a serial broker blocks the earlier hardlink, parent replacement and
+new-instruction attacks. Synthetic credential files/environment/descriptors,
+sibling processes, host listeners and captures are isolated from test children;
+a detached child stops on timeout. Named command requests are restricted, but
+arbitrary code still runs inside an allowed test sandbox.
+
+A separate scripted local Responses service drove two real CLI invocations
+without credentials or model inference, entirely inside the outer sandbox.
+Disabling shell/unified execution and related features removed execution and
+multi-agent tools from the observed request; `view_image` and
+`request_user_input` remained. This is tool-inventory evidence for the synthetic
+model ID, not adversarial tool-call enforcement or completed MCP/hook isolation.
+See the archived tool results and exact flags in the spike.
+
+**Codex remains disabled.** The broker is experimental evidence, not installed
+runtime support. Actual Codex tool routing, both authentication modes through an
+isolated transport, safe source export/import, bounded RPC/resource handling and
+integrated cancellation remain enablement gates. Extend the local fake-service
+probe to hostile actual tool calls before any adapter enablement. Claude defaults,
+human approval and fresh independent review gates are unchanged.
+
+Current validation: all 10 new Python tests pass; final host probe exits 0 with
+36 matching observations; two offline CLI tool-inventory controls pass;
+prerequisites, ShellCheck and all **481 BATS tests** pass. The historical BW01
+warning at `tests/test_defaults.bats:13` remains. ShellCheck 0.9.0 was downloaded
+as an Ubuntu package and extracted under `/tmp/codex-worker-validation-tools`;
+no system installation changed. Use
+`PATH="/tmp/codex-worker-validation-tools/extracted/usr/bin:/tmp/sandbox-pal-worker-venv/bin:$PATH"`
+for validation in this environment. Full BATS log: `/tmp/codex-broker-bats.log`.
+All continuation edits are uncommitted. No paid inference, GitHub mutations,
+runner changes, pushes or authentication changes occurred. Prior uncommitted
+extended evidence is preserved. Issues #116/#112 were re-read; neither had comments.
+
+### Previous checkpoint — native-profile failures
+
+Continuation after `e6729e0`: the remaining permission proof found reproducible
+gaps in the candidate native profile. The new evidence is currently uncommitted;
+preserve it. See [extended permission evidence](evidence/2026-09-07-codex-sandbox-extended/README.md).
+Twenty no-model boundary checks observed ten enforced and ten unenforced
+boundaries/negative controls. In particular, a pre-existing hardlink alias changed
+protected instruction contents, an exact nested read rule allowed parent rename
+and instruction replacement, and deny globs allowed instructions in newly created
+directories. Twelve configuration observations passed their controls, including
+the finding that an empty MCP table override does not remove inherited servers
+in `codex mcp list`. These are not twelve passing isolation checks.
+
+**Resume with the external-enforcement/mediated-edit design spike in that evidence
+record, not native adapter enablement.** The native profile is insufficient for
+the approved write-capable policy. Codex remains disabled; no adapter/runtime
+changes, commits, paid sessions, GitHub mutations or runner changes were made in
+this continuation. Actual worker credential isolation, command policy, MCP/hooks/
+plugins, model-driven approval/tool paths and process supervision remain pending.
+Issues #116 and #112 were read again and still have no comments. The operator's
+live-acceptance time/spend ceiling remains pending.
+
+Validation for this evidence-only continuation: both host probe scripts ran;
+the boundary probe intentionally exits 1 for unenforced boundaries, while all 12
+configuration observations satisfy their assertions. Python syntax, archived
+result consistency, relative evidence links and `git diff --check` pass. The
+runtime BATS/ShellCheck suites were not rerun; 481 passing remains historical.
+The prerequisite script encounters an npm ShellCheck wrapper first on this
+session's PATH, which attempts a download into a read-only global npm directory.
+Resolve the validation PATH/tool installation before subsequent runtime edits;
+the prior temporary jsonschema venv still exists.
 
 Prepared for a new session on the same machine and checkout. The validated
 engine/model and reachable-phase preflight milestone is committed as `5b7fb8a`
@@ -39,7 +362,8 @@ Current state:
   model sessions/GitHub-mutating acceptance. The fixture choice does not authorize
   unlimited runs. Local implementation and no-model tests can proceed.
 
-Resume with the remaining permission proof: command restrictions, MCP/hooks/
+Historical next step at `e6729e0` (superseded by the failure evidence above):
+resume with the remaining permission proof: command restrictions, MCP/hooks/
 plugins and project-config inheritance, real worker credential isolation,
 nested instruction paths and replacement attacks. Then implement Codex CLI
 capability/auth checks, adapter/JSONL normalization and process-tree supervision,
@@ -503,15 +827,14 @@ there before relying on this host's evidence.
 
 ## Suggested opening prompt for the next session
 
-> Continue issue #116 in `/home/jonny/repos/sandbox-pal-action` on
-> `feat/116-codex-worker-engine`. Read
-> `docs/superpowers/plans/2026-09-07-codex-worker-engine-handoff.md` first, then
-> the linked implementation plan and applicable repository guidance. The
-> configuration milestone is committed as `5b7fb8a`; 481 BATS tests pass.
-> The existing runner host's AppArmor prerequisite is fixed, and 18 initial
-> sandbox checks pass. Resume the remaining permission proof, then the Codex
-> adapter and process-tree supervision. Preserve Claude defaults, human approval,
-> independent fresh reviews, locks, and semantic outcomes. Use the selected
-> `Frightful-Games/recipe-manager-demo` fixture and existing PAT; verify access
-> in the intended credential context. Obtain a time/spend ceiling before paid
-> acceptance runs. Do not change Webber production or personal authentication.
+> Continue issue #116 on the existing branch and preserve all local work. Read
+> this handoff's current direction and the Claude compatibility baseline record.
+> The user explicitly wants the existing working Claude behavior as the baseline.
+> Claude stays default and its adapter/defaults remain unchanged. Codex is selected
+> through AGENT_ENGINE/per-phase overrides; production selection and strict wire
+> schemas now pass actual-CLI no-model checks. Absolute instruction-file prevention
+> and hostile-process containment are deferred hardening, not release blockers.
+> Do not revive the broker/AppArmor design or repeatedly ask about these decisions.
+> Preserve all human/review/test gates and standard authentication. Assess concrete
+> compatibility failures; paid/live acceptance still needs a time/spend ceiling.
+> No Webber production changes, login changes, pushes or live dispatch are authorized.

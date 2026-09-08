@@ -2,12 +2,13 @@
 
 This document covers every configuration option in sandbox-pal-action, how values are loaded, and example configurations for different project types.
 
-## Worker engine and model selection (staged #116 implementation)
+## Worker engine and model selection
 
-Claude remains the only enabled worker engine. `AGENT_ENGINE` defaults to
-`claude`; a nonempty `AGENT_ENGINE_<PHASE>` overrides it. `codex` is recognized
-but fails preflight until its permission implementation is verified. There is
-no automatic fallback. The interactive client does not select the worker engine.
+Claude remains the default worker engine. Set `AGENT_ENGINE=codex` to select Codex,
+or use `AGENT_ENGINE_<PHASE>` for mixed-engine dispatches. Each selected engine
+uses its own CLI and standard authentication; preflight validates only reachable
+engines. There is no automatic fallback. Interactive client choice does not select
+worker engines, and existing Claude-only configurations keep their behavior.
 
 Supported phase names are `TRIAGE`, `REPLY`, `VALIDATE`, `IMPLEMENT`, `REVIEW`
 (PR feedback revisions), `ADVERSARIAL_PLAN`, `POST_IMPL_REVIEW`,
@@ -41,6 +42,85 @@ not yet isolated or snapshotted by this mechanism. Preflight failure records
 `agent:failed` through the existing lock/outcome machinery; process exit zero
 still does not mean semantic success. Details are in the dispatch log and the
 scrubbed `preflight-*.log` capture.
+
+## Engine-specific configuration compatibility
+
+Codex uses native policy by default. Legacy Claude tool lists, extra/label tools,
+MCP configuration and turn caps apply to Claude workers. Selecting Codex does not
+translate those strings into equivalent restrictions or alter the project's native
+Codex integrations and research settings. Preflight logs the distinction.
+
+`AGENT_CODEX_USE_NATIVE_POLICY` defaults to `true`. Set it to `false` only if you
+want preflight to reject legacy Claude controls on Codex phases rather than scope
+those settings to Claude. Normal engine selection requires no second opt-in.
+
+Global or phase dollar budgets fail on reachable Codex phases because the adapter
+cannot enforce a dollar cap. `AGENT_TIMEOUT` limits elapsed time. In hybrid
+configurations, set budgets only on Claude phases. `AGENT_PERMISSION_MODE_<PHASE>`
+also fails if assigned to a Codex phase; use supported native Codex configuration
+instead. No Claude invocation flags or defaults are changed by this scoping.
+
+For Claude implementation with a fresh Codex post-implementation review:
+
+```bash
+AGENT_ENGINE=claude
+AGENT_ENGINE_POST_IMPL_REVIEW=codex
+# Optionally set AGENT_MODEL_CODEX to your intended supported Codex model.
+```
+
+Codex advisory phases use read-only policy; editing phases use workspace-write.
+Editing invocations explicitly include the checkout’s Git metadata directories
+(including linked-worktree metadata and shared objects/refs) as native writable
+paths so workers can create the commits required by the existing pipeline.
+Native sandbox limits can still prevent worker-side test execution; the separate
+dispatcher test gate remains authoritative.
+Human plan approval, fresh reviews, test gates, recovery and semantic outcomes
+remain shared. Workers are instructed to propose instruction-file improvements to
+the orchestrator. Absolute prevention of every instruction edit or escaped child
+process is deferred hardening, not an additional requirement over existing Claude
+behavior. Neither engine is claimed to provide those stronger guarantees.
+
+The Codex adapter closes object schemas and requires declared fields in the copy
+sent to its strict structured-output API. Empty strings/arrays represent unused
+fields where permitted. Shared schemas and Claude requests remain unchanged;
+returned data is validated against the original phase contract. Custom schemas
+with unsupported composition, arbitrary object keys or undeclared required fields
+fail configuration validation. Real-provider and full pipeline acceptance are
+still pending; actual-CLI loopback checks are not paid production acceptance.
+
+## Worker configuration in consuming workflows
+
+Keep engine/model choices together in the existing project configuration file.
+The distributed `config.defaults.env.example` lists engine and model overrides
+for every supported phase; setup/update track these names for configuration
+migration. The entries are commented, so installing them does not select Codex.
+
+In standalone mode, place non-sensitive settings in
+`.sandbox-pal-dispatch/config.defaults.env`, using the example's `${VAR:-default}`
+assignment form to preserve environment overrides. Generated label and
+`repository_dispatch` workflows execute the same local dispatcher and specify
+`.sandbox-pal-dispatch/config.env` for optional overrides. Keep authentication
+in that ignored override file or the runner's existing secret store.
+
+In reference mode, set the reusable workflow's existing `config_path` input to
+an absolute path on the runner. Every event for a project should use the same
+configuration, including programmatic dispatch and retries. For example, under
+the caller job's `with` mapping:
+
+```yaml
+bot_user: your-bot
+dispatch_script: /home/runner/agent-infra/scripts/sandbox-pal-dispatch.sh
+config_path: /home/runner/project-config/config.env
+```
+
+Set per-phase `AGENT_ENGINE_*` and `AGENT_MODEL_*` variables in that file using
+the precedence described above. There is no new workflow permission format or
+automatic engine switch. The shared preflight validates only reachable phases
+for each event before any worker starts.
+Workflow updates preserve consumer customizations: review changed templates and
+apply relevant edits in `.github/workflows/`, retaining actor filters, concurrency
+and human approval gates. Interactive client linking is described in the
+[customization guide](customization.md#connect-a-reference-or-custom-runtime).
 
 ## Config Loading Order
 

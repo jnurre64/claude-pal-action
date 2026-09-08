@@ -1,6 +1,54 @@
 # Issue 116: Codex worker engine implementation plan
 
+**Current scope override:** The operator has explicitly selected compatibility
+with the existing working Claude integration. Absolute instruction prevention and
+hostile-process containment are deferred hardening, not Codex enablement gates.
+See [the compatibility baseline](2026-09-07-codex-worker-engine-claude-parity.md).
+Earlier stricter release requirements below are historical and superseded.
+
+**Latest milestone — phase integration:** Read the
+[phase integration record](2026-09-07-codex-worker-engine-phase-integration.md).
+Codex is now wired through dispatch preflight and `run_agent` behind a closed,
+code-defined release gate. Native phase roles, frozen policy/model/schema state,
+shared task context, and harness-side triage plan publication are implemented.
+Both hybrid directions and the existing review failure path have mock coverage.
+Public Claude-tool configuration compatibility and instruction protection remain
+release work; no Codex worker is enabled. AppArmor/broker work remains parked.
+Final validation: prerequisites, ShellCheck and all 513 BATS tests pass. All changes
+remain local and uncommitted.
+
+**Previous implementation milestone:** [native controls audit and Codex result parser](2026-09-07-codex-worker-engine-native-controls.md).
+The native Codex recheck reproduced instruction-protection gaps; Claude defaults
+also do not explicitly enforce the requested instruction policy. The new Codex
+JSONL normalizer is implemented and tested independently, but no invocation adapter
+or Codex enablement is claimed. Prerequisites, ShellCheck and all 490 BATS tests
+pass for this milestone. Start with this record before older checkpoints.
+
+**Latest scope — native integration:** The operator requested a simpler,
+standard Claude/Codex workflow with research and mixed-phase engines. The
+[simplicity review](2026-09-07-codex-worker-engine-simplicity-review.md#updated-scope-ordinary-engine-compatibility)
+supersedes the custom-enforcement implementation order and enablement gates below.
+The broker, MCP shim, source staging and custom outer sandbox are retired from the
+production proposal; their files remain historical evidence. Standard authentication,
+Claude defaults and all review gates remain. Both scope questions are settled:
+workers must not edit `AGENTS.md` or `CLAUDE.md`; they suggest updates to the
+orchestrator, which can apply them or request review. Use native research controls
+and preserve project settings, without a new phase-specific access system initially.
+Instruction-file prevention still needs verification in both engines. Do not enable
+Codex until the required native policy and adapter are verified; report unsupported
+protection explicitly rather than restarting the retired custom architecture.
+
+
 Status: approach approved, including per-phase engine overrides in the first release.
+
+**Current operator decision:** [standard authentication and simplicity review](2026-09-07-codex-worker-engine-simplicity-review.md).
+Use Codex's normal login/API-key mechanisms and existing standard credential
+storage; Codex owns token refresh. No custom authentication relay, proxy, token
+store or refresh implementation unless the operator explicitly requests it.
+The trusted CLI may access credentials; isolation is required for model tools
+and repository/test processes. Broker, outer-sandbox and source-staging prototypes
+are candidates to reassess for necessity, not mandatory production components.
+This overrides earlier separate-authentication-transport proposals.
 Session handoff: [2026-09-07-codex-worker-engine-handoff.md](2026-09-07-codex-worker-engine-handoff.md).
 Repository initialization completed; #112 asset delivery implemented locally
 (see handoff progress); neutral Claude adapter and consumer migration implemented
@@ -10,6 +58,33 @@ host sandbox startup prerequisite is resolved and 18 initial command-boundary
 probes pass; full policy/adapter verification remains pending (see handoff).
 Working branch: `feat/116-codex-worker-engine`.
 Examined 2026-09-07 at `04cef68` (the same commit cited in the issue).
+
+Continuation after `e6729e0`: [extended permission probes](evidence/2026-09-07-codex-sandbox-extended/README.md)
+demonstrate that the candidate native write profile is insufficient. Pre-existing
+hardlinks, nested parent replacement and new instruction paths bypass its intended
+protections. Keep Codex disabled and prove external enforcement or mediated edits
+before the invocation adapter. The linked record preserves 20 boundary results,
+12 configuration observations and a concrete candidate for the next design spike.
+No runtime support is added by these probes.
+
+The subsequent [broker enforcement spike](evidence/2026-09-07-codex-broker/README.md)
+prototypes read-only source, serial mediated edits and isolated test subprocesses.
+Ten behavioral tests and 36 host observations match expectations, with explicit
+positive/negative controls. Two offline actual-CLI tool-inventory controls also
+pass using a local canned response service, without inference or credentials.
+The design record evaluates CLI/MCP versus app-server dynamic-tool attachment,
+the then-proposed separate model transport, credential-free builds and remaining
+enablement gates. The transport proposal is superseded by the operator decision above.
+No adapter is enabled: advertised-tool suppression alone is not enforcement,
+actual authentication remains untested, and source import/RPC/supervision are
+unfinished. Current full validation remains 481 BATS tests plus ShellCheck.
+
+The [actual-CLI continuation](evidence/2026-09-07-codex-broker/adversarial-continuation.md)
+adds 16 verified hostile-call denials, 12 successful CLI-to-broker round trips with
+phase enforcement, source export/candidate validation and bounded framing (24
+portable tests). Four MCP startup controls match; native image-read controls fail
+nested sandbox startup and the hook positive control has not executed. These
+limitations, standard-authentication isolation and production integration keep Codex disabled.
 
 Issue: https://github.com/jnurre64/sandbox-pal-action/issues/116
 Dependency: https://github.com/jnurre64/sandbox-pal-action/issues/112
