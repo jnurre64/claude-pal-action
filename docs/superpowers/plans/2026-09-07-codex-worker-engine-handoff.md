@@ -50,6 +50,20 @@ No additional approval is needed for the already-approved #37 plan. The original
 subscription acceptance window has ended; no additional model sessions were run
 while preparing these changes for review.
 
+## Review handoff
+
+Integration [draft PR #119](https://github.com/jnurre64/sandbox-pal-action/pull/119)
+is published from `feat/116-codex-worker-engine`. Runtime (`ec0e471`), delivery
+(`6f835c6`), historical evidence (`6323aed`), PR reporting (`c91ffe6`), and current
+documentation (`47cfb2e`) are separate commits. Local validation: 530 BATS tests,
+ShellCheck, changed Markdown relative file links, and whitespace checks passed.
+
+Next: review/merge Recipe Manager SDK repair #39, update #38 with that workflow
+and rerun its CI; resume both hybrid acceptance directions when Claude capacity
+and a new bounded test-session allowance are available. No changes to production
+worker configuration, subscriptions, or phase models/budgets were made. Neither
+Recipe Manager PR nor infrastructure PR has been merged.
+
 ## Historical milestones (current direction above takes precedence)
 
 **Historical milestone — actual-CLI no-model adapter checks:** Read the
