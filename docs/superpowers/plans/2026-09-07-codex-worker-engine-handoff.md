@@ -1,68 +1,55 @@
 # Issue 116 implementation handoff
 
-**Current operator direction — match the working Claude integration.** The user
-explicitly instructed us to preserve Claude behavior and use it as the compatibility
-baseline. Absolute instruction-file prevention and hostile-process containment are
-deferred hardening, not Codex enablement prerequisites. This supersedes historical
-closed-gate/protection requirements throughout the older records below. Do not
-reopen those scope questions or revive the retired broker/AppArmor work.
+## Current status after merge
 
-**Current implementation:** Read the
-[Claude compatibility baseline record](2026-09-07-codex-worker-engine-claude-parity.md).
-Claude stays default; explicit Codex/per-phase selection now uses the production
-adapter without a special gate or extra native-policy opt-in. Native wire-schema
-compatibility is fixed without changing Claude's schemas, adapter or defaults.
-Five actual-CLI no-model checks pass on that production path. Shared human/review/
-test/recovery gates remain. Real-provider Codex smoke and live triage have passed;
-the user approved #37 and the all-Codex pipeline opened PR #38. The operator approved a 30-minute subscription
-acceptance session, not a phase timeout change. No production config or login changed.
-All 530 BATS tests and ShellCheck pass, including Git metadata and PR reporting
-regressions. Final local log: `/tmp/codex-pr-report-final.log` (existing BW01 only).
-Five earlier actual-CLI no-model checks also passed.
-Runtime and client delivery are committed as `ec0e471` and `6f835c6`;
-PR reporting and current/historical documentation are separate review commits
-on this branch. Retired experiments are archival evidence, not installed assets.
+The operator merged [integration PR #119](https://github.com/jnurre64/sandbox-pal-action/pull/119)
+at `0f717a4967e8d6a0dbbccd09915d0012d8262e40` and Recipe Manager
+[SDK repair PR #39](https://github.com/Frightful-Games/recipe-manager-demo/pull/39)
+at `e94f2bb169e311082b82cae40fa67075e845fa68` on September 8, 2026 UTC.
 
-**Pre-acceptance review:** [Review and run preparation](2026-09-07-codex-worker-engine-preacceptance-review.md)
-records a schema-disabled triage fix, 527 passing tests, and verified WRITE access
-to the exact demo repository using the intended ignored PAT.
-[Live acceptance](2026-09-07-codex-worker-engine-live-acceptance.md) records the
-authorized session (22:47:54–23:17:54 UTC) and successful all-Codex pipeline after
-fixing linked-worktree Git metadata write access through native `--add-dir`.
-[PR #38](https://github.com/Frightful-Games/recipe-manager-demo/pull/38) is open,
-unmerged; both independent reviews approved and all 15 final-head tests passed.
-GitHub CI remains red because its runner lacks the configured .NET SDK; no tests
-started there. Claude subscription rate limits defer both hybrid acceptance runs.
-No billed API substitution. Generated PR descriptions now use engine-neutral
-attribution, report passed/disabled/unresolved dispatcher gates, and label the
-worker report as captured before those gates and PR creation. Regression tests
-cover both engines and disabled/unresolved gates.
+The operator explicitly deferred the Claude portion. Both live hybrid directions
+are tracked in [follow-up #120](https://github.com/jnurre64/sandbox-pal-action/issues/120).
+They do not block the merged integration. Do not retry Claude or request more
+subscription budget unless the operator resumes that follow-up. Mocked hybrid
+coverage passes; successful live hybrid acceptance is not claimed.
 
-Recipe Manager [draft PR #39](https://github.com/Frightful-Games/recipe-manager-demo/pull/39)
-repairs CI separately by provisioning .NET 9 with setup-dotnet in the runner's
-temporary directory. It does not alter #38's test-only scope. Nothing is merged.
-The initial workflow validation failure (runner context at job-env level) was
-fixed by moving the install-directory setting into the setup step.
-[CI run 34174370640](https://github.com/Frightful-Games/recipe-manager-demo/actions/runs/34174370640)
-passed SDK setup, restore, build and tests. Review/merge #39 before updating #38
-with main and rerunning its CI; neither PR is merged automatically.
-No additional approval is needed for the already-approved #37 plan. The original
-subscription acceptance window has ended; no additional model sessions were run
-while preparing these changes for review.
+## What is complete
 
-## Review handoff
+- Explicit Codex and per-phase engine/model routing, with Claude remaining default.
+- Native adapter, structured-output conversion, normalized outcomes, cancellation,
+  and linked-worktree Git metadata access required for commits.
+- Portable shared skills and standalone/reference/custom installation support.
+- Generated PRs distinguish earlier worker reports from final dispatcher gates.
+- Human plan approval, fresh independent reviews, test and recovery gates remain.
+- All 530 BATS tests and ShellCheck passed; log `/tmp/codex-pr-report-final.log`.
+  Changed Markdown relative links and whitespace checks passed. Existing BW01 only.
+- Real all-Codex triage, human approval, independent plan review, implementation,
+  dispatcher test gate, independent post-implementation review, and PR creation
+  passed for Recipe Manager #37 → #38. All 15 original final-head tests passed.
 
-Integration [draft PR #119](https://github.com/jnurre64/sandbox-pal-action/pull/119)
-is published from `feat/116-codex-worker-engine`. Runtime (`ec0e471`), delivery
-(`6f835c6`), historical evidence (`6323aed`), PR reporting (`c91ffe6`), and current
-documentation (`47cfb2e`) are separate commits. Local validation: 530 BATS tests,
-ShellCheck, changed Markdown relative file links, and whitespace checks passed.
+## Acceptance PR follow-through
 
-Next: review/merge Recipe Manager SDK repair #39, update #38 with that workflow
-and rerun its CI; resume both hybrid acceptance directions when Claude capacity
-and a new bounded test-session allowance are available. No changes to production
-worker configuration, subscriptions, or phase models/budgets were made. Neither
-Recipe Manager PR nor infrastructure PR has been merged.
+[Recipe Manager PR #38](https://github.com/Frightful-Games/recipe-manager-demo/pull/38)
+is open and now includes merged main/SDK repair. Its updated head is
+`07245a229d028596032c0e3ffa3e8690711ad4f6`.
+[CI run 34175088664](https://github.com/Frightful-Games/recipe-manager-demo/actions/runs/34175088664)
+passed SDK setup, restore, build and all 15 tests. PR #38 is ready for human
+review/merge. No additional model session or automatic merge was performed.
+The initial failed CI run lacked the configured SDK; the separate repair already
+passed SDK setup, restore, build and tests before its merge.
+
+## Preserved direction
+
+Match the working Claude integration. Codex support is additive; no production
+worker configuration, login, or phase models/budgets were changed. The earlier
+30-minute allowance covered only the completed live testing session.
+Absolute instruction-file prevention and hostile-process containment are deferred
+hardening, not enablement prerequisites. Historical broker/AppArmor experiments
+below are superseded, not installed runtime. Do not reopen those scope questions.
+
+See the [live acceptance record](2026-09-07-codex-worker-engine-live-acceptance.md)
+and [Claude compatibility baseline](2026-09-07-codex-worker-engine-claude-parity.md)
+for detailed evidence and limitations.
 
 ## Historical milestones (current direction above takes precedence)
 
