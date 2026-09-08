@@ -48,6 +48,11 @@ echo ""
 
 check_tool "jq"
 check_tool "shellcheck"
+check_tool "python3"
+if ! python3 "$(dirname "${BASH_SOURCE[0]}")/lib/agent-result.py" check-dependency >/dev/null 2>&1; then
+    echo "  jsonschema worker validator not found or unsupported"
+    MISSING+=("jsonschema")
+fi
 
 # ─── Bats submodule check ─────────────────────────────────────
 
@@ -89,6 +94,9 @@ if [ ${#MISSING[@]} -ne 0 ]; then
                     windows) echo "  shellcheck: winget install koalaman.shellcheck" ;;
                     *)       echo "  shellcheck: see https://github.com/koalaman/shellcheck#installing" ;;
                 esac
+                ;;
+            python3|jsonschema)
+                echo "  worker validator: install Python 3, then python3 -m pip install -r scripts/requirements-worker.txt"
                 ;;
             bats)
                 echo "  bats:       git submodule update --init --recursive"

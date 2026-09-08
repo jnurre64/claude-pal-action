@@ -1,0 +1,127 @@
+{
+  "fixture": "/tmp/sp116-native-instructions-5_c7muu5",
+  "component": "/tmp/sp116-native-srt/node_modules/@anthropic-ai/sandbox-runtime/dist/cli.js",
+  "baseline": false,
+  "results": [
+    {
+      "case": "source_edit",
+      "expected_denied": false,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    },
+    {
+      "case": "instruction_read",
+      "expected_denied": false,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    },
+    {
+      "case": "root_write",
+      "expected_denied": true,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    },
+    {
+      "case": "nested_write",
+      "expected_denied": true,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    },
+    {
+      "case": "symlink_write",
+      "expected_denied": true,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    },
+    {
+      "case": "hardlink_write",
+      "expected_denied": true,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    },
+    {
+      "case": "root_unlink",
+      "expected_denied": true,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    },
+    {
+      "case": "parent_replacement",
+      "expected_denied": true,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    },
+    {
+      "case": "new_instruction",
+      "expected_denied": true,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    },
+    {
+      "case": "new_source_directory",
+      "expected_denied": false,
+      "started": false,
+      "observation": null,
+      "root_unchanged": true,
+      "nested_unchanged": true,
+      "new_instruction_absent": true,
+      "matched": false,
+      "exit_code": 1,
+      "stderr": "apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN): Permission denied\n"
+    }
+  ]
+}

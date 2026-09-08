@@ -20,6 +20,17 @@ Thanks for your interest in contributing to sandbox-pal-action!
 
 ## Conventions
 
+### Coding agents
+
+Codex project guidance starts in [AGENTS.md](AGENTS.md); Claude Code continues
+to use [CLAUDE.md](CLAUDE.md) and `.claude/`. Codex discovers the shared
+orchestration skills through `.agents/skills/`. Those skills invoke the existing
+pipeline, whose workers default to Claude Code. Codex and mixed phases use the
+engine settings in [the configuration reference](docs/configuration.md). Work on
+this integration is tracked in [issue #116](https://github.com/jnurre64/sandbox-pal-action/issues/116).
+
+### Code style
+
 - Shell scripts use `bash` with `set -euo pipefail`
 - All scripts must pass [ShellCheck](https://www.shellcheck.net/) with zero warnings
 - Use kebab-case for file names, SCREAMING_SNAKE_CASE for environment variables
@@ -75,3 +86,7 @@ Open an issue with:
 ## Questions?
 
 Open a discussion or issue — happy to help.
+
+Worker-result and schema tests require Python 3 with the dependencies in
+`scripts/requirements-worker.txt`. Install them in your development environment
+before running `bash scripts/check-test-prereqs.sh` and the BATS suite.

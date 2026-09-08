@@ -14,6 +14,8 @@ if [ -f "$SCRIPT_DIR/lib/config-vars.sh" ]; then
     source "$SCRIPT_DIR/lib/config-vars.sh"
 fi
 
+source "$SCRIPT_DIR/lib/install-assets.sh"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -133,24 +135,17 @@ echo -e "  ${GREEN}✓${NC} config.env written to $CONFIG_FILE"
 if [ "$SETUP_MODE" = "2" ]; then
     AGENT_DIR="$TARGET_REPO_PATH/.sandbox-pal-dispatch"
 
-    echo "  Copying scripts..."
-    mkdir -p "$AGENT_DIR/scripts/lib"
-    cp "$REPO_ROOT/scripts/sandbox-pal-dispatch.sh" "$AGENT_DIR/scripts/"
-    cp "$REPO_ROOT/scripts/cleanup.sh" "$AGENT_DIR/scripts/"
-    cp "$REPO_ROOT/scripts/check-prereqs.sh" "$AGENT_DIR/scripts/"
-    cp "$REPO_ROOT/scripts/create-labels.sh" "$AGENT_DIR/scripts/"
-    cp "$REPO_ROOT/scripts/lib/"*.sh "$AGENT_DIR/scripts/lib/"
+    echo "  Copying standalone assets (scripts, prompts, schemas, skills, templates, labels)..."
+    mapfile -d '' -t TRACKED_FILES < <(list_install_assets "$REPO_ROOT")
+    for file in "${TRACKED_FILES[@]}"; do
+        mkdir -p "$(dirname "$AGENT_DIR/$file")"
+        # Preserve existing local assets when setup is repeated.
+        if [ ! -e "$AGENT_DIR/$file" ]; then
+            copy_install_asset "$REPO_ROOT/$file" "$AGENT_DIR/$file"
+        fi
+    done
     chmod +x "$AGENT_DIR/scripts/"*.sh
-    echo -e "  ${GREEN}✓${NC} Scripts copied to $AGENT_DIR/scripts/"
-
-    echo "  Copying prompts..."
-    mkdir -p "$AGENT_DIR/prompts"
-    cp "$REPO_ROOT/prompts/"*.md "$AGENT_DIR/prompts/"
-    echo -e "  ${GREEN}✓${NC} Prompts copied to $AGENT_DIR/prompts/"
-
-    echo "  Copying labels.txt..."
-    cp "$REPO_ROOT/labels.txt" "$AGENT_DIR/"
-    echo -e "  ${GREEN}✓${NC} labels.txt copied"
+    link_install_client_skills "$AGENT_DIR"
 
     # Write upstream tracking file for /update support
     echo "  Writing version tracking..."
@@ -162,16 +157,11 @@ if [ "$SETUP_MODE" = "2" ]; then
         echo "version: $CURRENT_SHA"
         echo "synced_at: \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\""
         echo "checksums:"
-        # Dynamically find all copied files for checksum tracking
-        while IFS= read -r -d '' tracked_path; do
-            tracked_file="${tracked_path#"$AGENT_DIR/"}"
-            file_checksum=$(sha256sum "$tracked_path" | cut -d' ' -f1)
+        for tracked_file in "${TRACKED_FILES[@]}"; do
+            # Record the upstream baseline, never bless local customization.
+            file_checksum=$(sha256sum "$REPO_ROOT/$tracked_file" | cut -d' ' -f1)
             echo "  ${tracked_file}: \"sha256:${file_checksum}\""
-        done < <(find "$AGENT_DIR/scripts" "$AGENT_DIR/prompts" -type f -print0 2>/dev/null)
-        if [ -f "$AGENT_DIR/labels.txt" ]; then
-            file_checksum=$(sha256sum "$AGENT_DIR/labels.txt" | cut -d' ' -f1)
-            echo "  labels.txt: \"sha256:${file_checksum}\""
-        fi
+        done
         # Track known config vars for future new-var detection
         if type parse_config_vars &>/dev/null && [ -f "$REPO_ROOT/config.defaults.env.example" ]; then
             echo "config_vars:"
@@ -179,7 +169,8 @@ if [ "$SETUP_MODE" = "2" ]; then
                 echo "  - $var"
             done
         fi
-    } > "$AGENT_DIR/.upstream"
+    } > "$AGENT_DIR/.upstream.tmp"
+    mv "$AGENT_DIR/.upstream.tmp" "$AGENT_DIR/.upstream"
     echo -e "  ${GREEN}✓${NC} Version tracking written (.upstream)"
 fi
 
@@ -297,6 +288,9 @@ echo ""
 
 if [ "$SETUP_MODE" = "1" ]; then
     echo "Mode: Reference (workflows call upstream repo)"
+    echo "For interactive clients, connect the local runtime explicitly:"
+    printf '  bash %q <project-directory> %q\n' "$REPO_ROOT/scripts/link-client-skills.sh" "$REPO_ROOT"
+    echo "Set AGENT_CONFIG to the intended project config.env before invoking dispatch skills."
     echo ""
     echo "Created:"
     echo -e "  ${GREEN}✓${NC} config.env at $CONFIG_FILE"
@@ -308,6 +302,7 @@ else
     echo -e "  ${GREEN}✓${NC} .sandbox-pal-dispatch/scripts/    — dispatch and utility scripts"
     echo -e "  ${GREEN}✓${NC} .sandbox-pal-dispatch/prompts/    — default agent prompts"
     echo -e "  ${GREEN}✓${NC} .sandbox-pal-dispatch/config.env  — project configuration"
+    echo "  Shared skills: .claude/skills/ and .agents/skills/ (existing entries preserved)"
     echo -e "  ${GREEN}✓${NC} .github/workflows/          — workflow files"
 fi
 

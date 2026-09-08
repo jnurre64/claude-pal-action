@@ -8,7 +8,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-REQUIRED_TOOLS=("gh" "claude" "git" "jq" "curl")
+REQUIRED_TOOLS=("gh" "claude" "git" "jq" "curl" "python3")
 MISSING=()
 WARNINGS=()
 
@@ -26,6 +26,11 @@ for tool in "${REQUIRED_TOOLS[@]}"; do
 done
 
 echo ""
+
+if ! python3 "$(dirname "${BASH_SOURCE[0]}")/lib/agent-result.py" check-dependency >/dev/null 2>&1; then
+    echo "Missing worker validator: python3 -m pip install -r scripts/requirements-worker.txt"
+    MISSING+=("jsonschema")
+fi
 
 # Check gh authentication
 if command -v gh &> /dev/null; then

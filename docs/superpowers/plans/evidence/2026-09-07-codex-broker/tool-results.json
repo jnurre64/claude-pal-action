@@ -1,0 +1,77 @@
+{
+  "prototype_only": true,
+  "codex_enabled": false,
+  "fixture_root": "/tmp/codex-broker-tools-f24q8_k6",
+  "sandbox_exit_code": 0,
+  "sandbox_stderr": "",
+  "observations": [
+    {
+      "restricted": false,
+      "exit_code": 0,
+      "request_count": 1,
+      "tools": [
+        {
+          "type": "function",
+          "name": "exec_command"
+        },
+        {
+          "type": "function",
+          "name": "write_stdin"
+        },
+        {
+          "type": "function",
+          "name": "request_user_input"
+        },
+        {
+          "type": "function",
+          "name": "view_image"
+        },
+        {
+          "type": "namespace",
+          "name": "multi_agent_v1"
+        },
+        {
+          "type": "function",
+          "name": "close_agent"
+        },
+        {
+          "type": "function",
+          "name": "resume_agent"
+        },
+        {
+          "type": "function",
+          "name": "send_input"
+        },
+        {
+          "type": "function",
+          "name": "spawn_agent"
+        },
+        {
+          "type": "function",
+          "name": "wait_agent"
+        }
+      ],
+      "terminal_success": true,
+      "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-home-False\"))\nReading additional input from stdin...\n"
+    },
+    {
+      "restricted": true,
+      "exit_code": 0,
+      "request_count": 1,
+      "tools": [
+        {
+          "type": "function",
+          "name": "request_user_input"
+        },
+        {
+          "type": "function",
+          "name": "view_image"
+        }
+      ],
+      "terminal_success": true,
+      "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/codex-home-True\"))\nReading additional input from stdin...\n"
+    }
+  ],
+  "limit": "Tool advertisement only; no model-driven tool call or authentication proof",
+  "all_observations_pass": true
+}

@@ -1,0 +1,95 @@
+{
+  "fixture_root": "/tmp/codex-runner-boundaries-twton0j6",
+  "results": [
+    {
+      "name": "read-only source read",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "read-only source write denied",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "read-only new file denied",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "implementation source edit allowed",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "triage artifact write allowed",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "triage source write denied",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "protected write denied: AGENTS.md",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "protected write denied: CLAUDE.md",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "protected write denied: .agents/policy.txt",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "protected write denied: .codex/policy.txt",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "protected write denied: .claude/policy.txt",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "protected write denied: memory-link",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "protected write denied: policy-link",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "outside write denied: memory.txt",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "outside write denied: capture.txt",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "external memory readable",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "synthetic credential unreadable",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "network denied to reachable local listener",
+      "passed": true,
+      "exit_code": 0
+    }
+  ]
+}

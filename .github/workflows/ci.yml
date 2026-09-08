@@ -37,5 +37,12 @@ jobs:
         with:
           submodules: true
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install worker validation dependencies
+        run: python3 -m pip install -r scripts/requirements-worker.txt
+
       - name: Run BATS tests
         run: ./tests/bats/bin/bats tests/

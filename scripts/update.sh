@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # ─── Update a standalone sandbox-pal-dispatch installation from upstream ──
-# Usage: update.sh [path-to-.sandbox-pal-dispatch]
+# Usage: update.sh [--yes] [path-to-.sandbox-pal-dispatch]
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -13,7 +13,23 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ASSUME_YES=false
+if [ "${1:-}" = "--yes" ]; then
+    ASSUME_YES=true
+    shift
+fi
 INSTALL_DIR="${1:-.sandbox-pal-dispatch}"
+
+# EOF preserves files/config; --yes accepts only safe updates and new assets.
+prompt_update() {
+    local prompt="$1" variable="$2" fallback="$3" automatic="$4" answer
+    if [ "$ASSUME_YES" = true ]; then
+        answer="$automatic"
+    elif ! read -rp "$prompt" answer; then
+        answer="$fallback"
+    fi
+    printf -v "$variable" '%s' "$answer"
+}
 
 # Secret-detection keywords — vars matching these are flagged and never written
 SECRET_KEYWORDS="TOKEN|KEY|SECRET|WEBHOOK|PASSWORD|CREDENTIAL"
@@ -72,21 +88,16 @@ echo -e "Latest upstream:  ${CYAN}${LATEST_SHA:0:12}${NC}"
 echo ""
 
 if [ "$STORED_VERSION" = "$LATEST_SHA" ]; then
-    echo -e "${GREEN}Already up to date.${NC}"
-    exit 0
+    echo "Already up to date by version; checking for missing or deferred assets."
 fi
 
-# ── Discover trackable files from upstream ────────────────────────
-# Dynamically finds all scripts, prompts, and config files rather than
-# using a hardcoded list. This ensures new files added upstream are detected.
-TRACKED_FILES=()
-while IFS= read -r -d '' file; do
-    # Get path relative to upstream root
-    rel_path="${file#"$UPSTREAM_DIR/"}"
-    TRACKED_FILES+=("$rel_path")
-done < <(find "$UPSTREAM_DIR/scripts" "$UPSTREAM_DIR/prompts" -type f -print0 2>/dev/null)
-# Also track labels.txt
-[ -f "$UPSTREAM_DIR/labels.txt" ] && TRACKED_FILES+=("labels.txt")
+# ── Discover trackable files from the shared inventory ────────────
+if [ -f "$UPSTREAM_DIR/scripts/lib/install-assets.sh" ]; then
+    source "$UPSTREAM_DIR/scripts/lib/install-assets.sh"
+else
+    source "$SCRIPT_DIR/lib/install-assets.sh"
+fi
+mapfile -d '' -t TRACKED_FILES < <(list_install_assets "$UPSTREAM_DIR")
 
 # ── Categorize files ─────────────────────────────────────────────
 AUTO_UPDATE=()
@@ -97,7 +108,9 @@ NEW_FILES=()
 
 get_stored_checksum() {
     local file="$1"
-    grep "  ${file}:" "$UPSTREAM_FILE" | sed 's/.*"sha256://' | sed 's/".*//' || echo ""
+    awk -v key="  ${file}:" 'index($0, key " ") == 1 {
+        sub(/^.*"sha256:/, ""); sub(/".*$/, ""); print; exit
+    }' "$UPSTREAM_FILE"
 }
 
 for file in "${TRACKED_FILES[@]}"; do
@@ -117,6 +130,11 @@ for file in "${TRACKED_FILES[@]}"; do
     fi
 
     local_checksum=$(sha256sum "$local_path" | cut -d' ' -f1)
+    # Recover a copy interrupted before metadata was stamped.
+    if [ "$local_checksum" = "$upstream_checksum" ]; then
+        UP_TO_DATE+=("$file")
+        continue
+    fi
     local_modified=false
     upstream_changed=false
 
@@ -176,13 +194,21 @@ if [ ${#LOCAL_ONLY[@]} -gt 0 ]; then
     echo ""
 fi
 
+for file in "${AUTO_UPDATE[@]}" "${NEEDS_REVIEW[@]}" "${NEW_FILES[@]}"; do
+    if [[ "$file" == .claude/skills/setup/templates/* ]]; then
+        echo "Workflow templates changed: review $INSTALL_DIR/.claude/skills/setup/templates/"
+        echo "Apply relevant changes to your repository's .github/workflows/ (preserving actor filters)."
+        break
+    fi
+done
+
 # ── Apply auto-updates ───────────────────────────────────────────
 if [ ${#AUTO_UPDATE[@]} -gt 0 ]; then
-    read -rp "Apply all auto-updates? [Y/n]: " APPLY_AUTO
+    prompt_update "Apply all auto-updates? [Y/n]: " APPLY_AUTO n Y
     APPLY_AUTO="${APPLY_AUTO:-Y}"
     if [[ "$APPLY_AUTO" =~ ^[Yy] ]]; then
         for file in "${AUTO_UPDATE[@]}"; do
-            cp "$UPSTREAM_DIR/$file" "$INSTALL_DIR/$file"
+            copy_install_asset "$UPSTREAM_DIR/$file" "$INSTALL_DIR/$file"
             echo -e "  ${GREEN}✓${NC} Updated $file"
         done
     fi
@@ -196,19 +222,20 @@ if [ ${#NEEDS_REVIEW[@]} -gt 0 ]; then
     echo ""
     for file in "${NEEDS_REVIEW[@]}"; do
         echo -e "  ${BOLD}$file${NC}"
-        read -rp "  [a]ccept upstream / [k]eep local / [d]iff? " CHOICE
+        prompt_update "  [a]ccept upstream / [k]eep local / [d]iff? " CHOICE k k
         case "$CHOICE" in
             a|A)
-                cp "$UPSTREAM_DIR/$file" "$INSTALL_DIR/$file"
+                copy_install_asset "$UPSTREAM_DIR/$file" "$INSTALL_DIR/$file"
                 echo -e "  ${GREEN}✓${NC} Replaced with upstream version"
                 ;;
             d|D)
                 echo ""
                 diff -u "$INSTALL_DIR/$file" "$UPSTREAM_DIR/$file" || true
                 echo ""
-                read -rp "  After reviewing: [a]ccept upstream / [k]eep local? " CHOICE2
+                prompt_update "  After reviewing: [a]ccept upstream / [k]eep local? " CHOICE2 k k
+                # shellcheck disable=SC2153 # Assigned indirectly by prompt_update.
                 if [[ "$CHOICE2" =~ ^[aA] ]]; then
-                    cp "$UPSTREAM_DIR/$file" "$INSTALL_DIR/$file"
+                    copy_install_asset "$UPSTREAM_DIR/$file" "$INSTALL_DIR/$file"
                     echo -e "  ${GREEN}✓${NC} Replaced with upstream version"
                 else
                     echo -e "  ${CYAN}→${NC} Kept local version"
@@ -224,12 +251,12 @@ fi
 
 # ── Handle new files ─────────────────────────────────────────────
 if [ ${#NEW_FILES[@]} -gt 0 ]; then
-    read -rp "Add new upstream files? [Y/n]: " ADD_NEW
+    prompt_update "Add new upstream files? [Y/n]: " ADD_NEW n Y
     ADD_NEW="${ADD_NEW:-Y}"
     if [[ "$ADD_NEW" =~ ^[Yy] ]]; then
         for file in "${NEW_FILES[@]}"; do
             mkdir -p "$(dirname "$INSTALL_DIR/$file")"
-            cp "$UPSTREAM_DIR/$file" "$INSTALL_DIR/$file"
+            copy_install_asset "$UPSTREAM_DIR/$file" "$INSTALL_DIR/$file"
             echo -e "  ${GREEN}✓${NC} Added $file"
         done
     fi
@@ -352,7 +379,7 @@ if type parse_config_vars &>/dev/null && [ -f "$UPSTREAM_DIR/config.defaults.env
                     fi
                     echo ""
 
-                    read -rp "      (A)dd active / (c)ommented (default) / (s)kip: " CHOICE
+                    prompt_update "      (A)dd active / (c)ommented (default) / (s)kip: " CHOICE s s
                     CHOICE="${CHOICE:-c}"
 
                     case "$CHOICE" in
@@ -410,18 +437,32 @@ fi
 
 # ── Update .upstream tracking ────────────────────────────────────
 echo -e "${CYAN}Updating version tracking...${NC}"
+PENDING_ASSETS=0
+for file in "${TRACKED_FILES[@]}"; do
+    if ! cmp -s "$UPSTREAM_DIR/$file" "$INSTALL_DIR/$file"; then
+        PENDING_ASSETS=$((PENDING_ASSETS + 1))
+    fi
+done
 {
     echo "# Upstream tracking for standalone sandbox-pal-dispatch installation"
     echo "# Do not edit manually — managed by /update skill and setup.sh"
     echo "repo: $UPSTREAM_REPO"
     echo "version: $LATEST_SHA"
+    echo "pending_assets: $PENDING_ASSETS"
     echo "synced_at: \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\""
     echo "checksums:"
     for file in "${TRACKED_FILES[@]}"; do
         local_path="$INSTALL_DIR/$file"
         if [ -f "$local_path" ]; then
-            checksum=$(sha256sum "$local_path" | cut -d' ' -f1)
-            echo "  ${file}: \"sha256:${checksum}\""
+            checksum=$(sha256sum "$UPSTREAM_DIR/$file" | cut -d' ' -f1)
+            local_checksum=$(sha256sum "$local_path" | cut -d' ' -f1)
+            if [ "$local_checksum" != "$checksum" ]; then
+                checksum=$(get_stored_checksum "$file")
+            fi
+            # Keep the previous baseline for deferred/customized assets.
+            if [ -n "$checksum" ]; then
+                echo "  ${file}: \"sha256:${checksum}\""
+            fi
         fi
     done
     # Track known config vars for future new-var detection
@@ -431,12 +472,21 @@ echo -e "${CYAN}Updating version tracking...${NC}"
             echo "  - $var"
         done
     fi
-} > "$UPSTREAM_FILE"
+} > "$UPSTREAM_FILE.tmp"
+mv "$UPSTREAM_FILE.tmp" "$UPSTREAM_FILE"
+
+# Older distributions may not yet provide client discovery assets/helpers.
+if type link_install_client_skills &>/dev/null; then
+    link_install_client_skills "$INSTALL_DIR"
+fi
 
 echo -e "  ${GREEN}✓${NC} Updated .upstream to ${LATEST_SHA:0:12}"
 echo ""
 
 echo -e "${BOLD}Update complete.${NC}"
+if [ "$PENDING_ASSETS" -gt 0 ]; then
+    echo "$PENDING_ASSETS asset(s) remain customized or deferred; rerun update to review."
+fi
 
 # Config migration summary
 CONFIG_TOTAL=$((CONFIG_ADDED + CONFIG_COMMENTED + CONFIG_SKIPPED + CONFIG_SENSITIVE))
@@ -456,5 +506,5 @@ if [ "$CONFIG_TOTAL" -gt 0 ]; then
     fi
 fi
 
-echo "Don't forget to commit: git add .sandbox-pal-dispatch/ && git commit -m 'Update sandbox-pal-dispatch from upstream'"
+echo "Review and commit the updated .sandbox-pal-dispatch/ assets and any new .claude/skills/ and .agents/skills/ links."
 echo ""

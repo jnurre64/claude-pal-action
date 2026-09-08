@@ -343,105 +343,12 @@ denials_report_section() {
         "$(head -30 "$denials_file")"
 }
 
-# ─── Run Claude and capture structured output ────────────────────
-run_claude() {
-    local prompt="$1"
-    local allowed_tools="${2:-$AGENT_ALLOWED_TOOLS_IMPLEMENT}"
-    local model_override="${3:-}"
-    local schema_file="${4:-}"
-    local phase="${5:-}"
-    local memory
-    memory=$(load_shared_memory)
+# Runner modules are also loaded for consumers that source common.sh directly.
+# shellcheck disable=SC1091  # Runtime sibling path.
+source "$(dirname "${BASH_SOURCE[0]}")/agent.sh"
 
-    cd "$WORKTREE_DIR" || return 1
-    local stderr_log="$AGENT_LOG_DIR/claude-stderr-${REPO_NAME}-${NUMBER}-${TIMESTAMP}.log"
-    local claude_args=(
-        -p "$prompt"
-        --allowedTools "$allowed_tools"
-        --disallowedTools "$AGENT_DISALLOWED_TOOLS"
-        --max-turns "$AGENT_MAX_TURNS"
-        --output-format json
-    )
-    local effective_model="${model_override:-${AGENT_MODEL:-}}"
-    if [ -n "$effective_model" ]; then
-        claude_args+=(--model "$effective_model")
-    fi
-    # Path gating is separate from tool rules: a command matching an
-    # allow rule is still denied when it touches a path outside the
-    # working directory. Sibling repos, scratch areas and package
-    # caches need --add-dir (#93).
-    if [ -n "${AGENT_ADD_DIRS:-}" ]; then
-        local add_dir
-        for add_dir in $AGENT_ADD_DIRS; do
-            claude_args+=(--add-dir "$add_dir")
-        done
-    fi
-    # The memory directory is usually out-of-tree; without --add-dir the
-    # Read of a pointed-at memory file would be path-gated (#97).
-    local memory_dir
-    memory_dir=$(_resolve_memory_dir)
-    if [ -n "$memory_dir" ]; then
-        claude_args+=(--add-dir "$memory_dir")
-    fi
-    # Per-phase invocation flags (#98). Every one optional, defaulting to
-    # current behaviour — budget in particular is LIMITLESS unless set:
-    # turns and dollars are not interchangeable bounds, but a cap is the
-    # operator's choice, never the harness's.
-    if [ -n "$phase" ]; then
-        local _var
-        _var="AGENT_BUDGET_USD_${phase}"
-        local budget="${!_var:-${AGENT_BUDGET_USD:-}}"
-        [ -n "$budget" ] && claude_args+=(--max-budget-usd "$budget")
-        _var="AGENT_EFFORT_${phase}"
-        local effort="${!_var:-}"
-        [ -n "$effort" ] && claude_args+=(--effort "$effort")
-        _var="AGENT_PERMISSION_MODE_${phase}"
-        local permission_mode="${!_var:-}"
-        [ -n "$permission_mode" ] && claude_args+=(--permission-mode "$permission_mode")
-    fi
-    # Gate the MCP tool surface explicitly: without --strict-mcp-config a
-    # phase silently inherits the operator's personal MCP servers —
-    # "inherit identity, memory and skills; gate the tool surface."
-    if [ -n "${AGENT_MCP_CONFIG:-}" ]; then
-        claude_args+=(--mcp-config "$AGENT_MCP_CONFIG" --strict-mcp-config)
-    elif [ "${AGENT_STRICT_MCP:-}" = "true" ]; then
-        claude_args+=(--strict-mcp-config)
-    fi
-    # Headless phases should not accumulate resumable sessions
-    if [ "${AGENT_SESSION_PERSISTENCE:-false}" != "true" ]; then
-        claude_args+=(--no-session-persistence)
-    fi
-    if [ -n "$memory" ]; then
-        claude_args+=(--append-system-prompt "$memory")
-    fi
-    # Structured output: the CLI validates the phase's final output
-    # against the schema and returns it in .structured_output (#96).
-    # Relative override paths resolve against CONFIG_DIR, like prompts.
-    if [ -n "$schema_file" ]; then
-        if [ ! -f "$schema_file" ] && [ -n "${CONFIG_DIR:-}" ] && [ -f "${CONFIG_DIR}/${schema_file}" ]; then
-            schema_file="${CONFIG_DIR}/${schema_file}"
-        fi
-        if [ -f "$schema_file" ]; then
-            claude_args+=(--json-schema "$(jq -c . "$schema_file")")
-        else
-            log "WARN: schema file not found, running without --json-schema: ${schema_file}"
-        fi
-    fi
-
-    local raw_output exit_code=0
-    raw_output=$(timeout "$AGENT_TIMEOUT" claude "${claude_args[@]}" 2>"$stderr_log") || exit_code=$?
-
-    # Scrub at the point of capture — before the envelope or the stderr
-    # log reaches any log line, parse, file, or comment (#91).
-    redact_secrets < "$stderr_log" > "${stderr_log}.tmp" \
-        && mv "${stderr_log}.tmp" "$stderr_log"
-    printf '%s\n' "$raw_output" | redact_secrets
-
-    if [ "$exit_code" -ne 0 ]; then
-        log "Claude exited with code $exit_code. Stderr: $(head -20 "$stderr_log")"
-        echo '{"result":"Claude timed out or errored (exit code '"$exit_code"')","error":true}'
-    fi
-}
+# Compatibility entry point for existing local callers.
+run_claude() { run_agent "$@"; }
 
 # ─── Structured output ───────────────────────────────────────────
 # The schema-validated object from the envelope, compact, or empty when
@@ -451,7 +358,7 @@ run_claude() {
 get_structured_output() {
     local result="$1"
     printf '%s' "$result" \
-        | jq -c '.structured_output // empty | select(. != null)' 2>/dev/null \
+        | jq -c 'select(.version != 1 or .status == "success") | .structured_output // empty | select(. != null)' 2>/dev/null \
         || true
 }
 
@@ -463,6 +370,10 @@ get_structured_output() {
 # interpolated as a reason.
 parse_claude_output() {
     local result="$1"
+    if [ "$(printf '%s' "$result" | jq -r '.version // empty' 2>/dev/null)" = "1" ]; then
+        parse_agent_output "$result"
+        return
+    fi
     if [ "$(echo "$result" | jq -r '.is_error // false' 2>/dev/null)" = "true" ]; then
         local detail
         detail=$(echo "$result" | jq -r \
@@ -494,6 +405,10 @@ parse_claude_output() {
 # ok:          a normal ending.
 classify_claude_result() {
     local result="$1"
+    if [ "$(printf '%s' "$result" | jq -r '.version // empty' 2>/dev/null)" = "1" ]; then
+        classify_agent_result "$result"
+        return
+    fi
     if [ "$(echo "$result" | jq -r '.is_error // false' 2>/dev/null)" = "true" ]; then
         echo "fail_fast"
         return 0
@@ -604,10 +519,30 @@ $(_ledger_outstanding_summary)
             fi
         fi
 
-        local pr_body
+        local pr_body test_status="Not configured" review_status="Disabled"
+        if [ -n "${AGENT_TEST_COMMAND:-}" ]; then
+            test_status="Passed"
+        fi
+        if [ "${AGENT_POST_IMPL_REVIEW:-false}" = true ]; then
+            review_status="Approved"
+            if [ "$review_rc" -eq 2 ]; then
+                review_status="Unresolved — retry limit reached; human arbitration required"
+            fi
+        fi
         pr_body="${unresolved_header}## Automated PR for #${NUMBER}
 
-This PR was created by the Claude Code agent.
+This PR was created by the agent pipeline.
+
+### Dispatcher gate results
+
+- Pre-PR tests: ${test_status}
+- Post-implementation review: ${review_status}
+
+GitHub CI is reported separately by the PR checks.
+
+### Implementation worker report
+
+Captured before the dispatcher ran its gates and opened this PR:
 
 ${claude_output:0:2000}
 ${ledger_summary}$(denials_report_section)

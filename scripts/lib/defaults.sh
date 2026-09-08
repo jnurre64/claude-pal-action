@@ -9,6 +9,9 @@
 # Bot account username (REQUIRED — no default)
 AGENT_BOT_USER="${AGENT_BOT_USER:?AGENT_BOT_USER must be set in config.env}"
 
+# Preserve whether the operator requested this Claude-only cap.
+AGENT_MAX_TURNS_EXPLICIT="${AGENT_MAX_TURNS_EXPLICIT-${AGENT_MAX_TURNS+x}}"
+
 # Max Claude conversation turns per invocation
 AGENT_MAX_TURNS="${AGENT_MAX_TURNS:-200}"
 
@@ -88,13 +91,21 @@ AGENT_PROMPT_CLEANUP="${AGENT_PROMPT_CLEANUP:-}"
 AGENT_ALLOWED_TOOLS_CLEANUP="${AGENT_ALLOWED_TOOLS_CLEANUP:-Read,Edit,Write,Grep,Glob,Bash(git add:*),Bash(git commit:*),Bash(git rm:*),Bash(git status),Bash(git diff:*),Bash(git log:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*)}"
 
 # ─── Model configuration ────────────────────────────────────
-# Claude model to use (empty = use CLI default, currently Opus 4.6)
+# Claude remains the default; Codex selection fails closed until policy proof.
+AGENT_ENGINE="${AGENT_ENGINE:-claude}"
+AGENT_MODEL_CLAUDE="${AGENT_MODEL_CLAUDE:-}"
+AGENT_MODEL_CODEX="${AGENT_MODEL_CODEX:-}"
+
+# Legacy model fallback, used only for the dispatch default engine.
 AGENT_MODEL="${AGENT_MODEL:-}"
 
-# Per-workflow model overrides (empty = fall back to AGENT_MODEL, then CLI default).
+# Per-phase model overrides (empty = engine model, then eligible legacy model,
+# then CLI default; see agent-config.sh for REPLY/VALIDATE compatibility).
 # Use these to pick a faster/cheaper model for read-only review phases while
 # keeping a stronger model for implementation, or vice versa.
 AGENT_MODEL_TRIAGE="${AGENT_MODEL_TRIAGE:-}"
+AGENT_MODEL_REPLY="${AGENT_MODEL_REPLY:-}"
+AGENT_MODEL_VALIDATE="${AGENT_MODEL_VALIDATE:-}"
 AGENT_MODEL_IMPLEMENT="${AGENT_MODEL_IMPLEMENT:-}"
 AGENT_MODEL_REVIEW="${AGENT_MODEL_REVIEW:-}"
 AGENT_MODEL_ADVERSARIAL_PLAN="${AGENT_MODEL_ADVERSARIAL_PLAN:-}"

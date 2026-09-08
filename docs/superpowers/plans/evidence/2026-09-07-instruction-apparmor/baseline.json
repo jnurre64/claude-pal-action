@@ -1,0 +1,265 @@
+{
+  "baseline": true,
+  "root": "/tmp/sp116-apparmor-zo7gjn9f",
+  "results": [
+    {
+      "profile": null,
+      "case": "instruction read",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": true,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "ordinary source edit",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": true,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "ordinary directory creation",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": true,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "ordinary source rename",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": true,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "descendant source edit",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": true,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "research connection",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": true,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "direct protected write",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "descendant protected write",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "nested protected write",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "protected unlink",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "atomic replacement",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "protected parent replacement",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "new nested instruction",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "symlink alias",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "new hardlink alias",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "pre-existing hardlink alias",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "renaming ordinary file to instruction",
+      "exit_code": 0,
+      "stdout": "{\"denied\": false}\n",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "observation": {
+        "denied": false
+      },
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "claude startup",
+      "exit_code": 0,
+      "stdout": "2.1.263 (Claude Code)\n",
+      "stderr": "",
+      "timed_out": false,
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "codex startup",
+      "exit_code": 0,
+      "stdout": "codex-cli 0.153.4\n",
+      "stderr": "",
+      "timed_out": false,
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "native Codex sandbox startup",
+      "exit_code": 0,
+      "stdout": "native-sandbox-started\n",
+      "stderr": "",
+      "timed_out": false,
+      "matches_requirement": true
+    },
+    {
+      "profile": null,
+      "case": "mount alias",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "instruction_unchanged": false,
+      "matches_requirement": true
+    }
+  ],
+  "all_requirements_pass": true
+}

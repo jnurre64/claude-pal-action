@@ -1,0 +1,42 @@
+abi <abi/4.0>,
+# EXPERIMENT ONLY. No executable attachment and no persistent installation.
+# Loaded names are selected explicitly by aa-exec for disposable fixture children.
+# Broad allows deliberately isolate filename protection from other engine policy.
+profile sp116-apparmor-zo7gjn9f-strict flags=(attach_disconnected,mediate_deleted) {
+  /** rwklmix,
+  network,
+  unix,
+  signal,
+  ptrace peer=sp116-apparmor-zo7gjn9f-strict,
+  # Variant-specific native sandbox support:
+  # No mount, capability or userns grants.
+
+  # Dynamic filename matching, including paths created after profile loading.
+  deny /**/[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd] wkl,
+  deny /**/[Cc][Ll][Aa][Uu][Dd][Ee].[Mm][Dd] wkl,
+  # Pin existing protected parents without denying writes to ordinary children.
+  deny /tmp/sp116-apparmor-zo7gjn9f/ w,
+  deny /tmp/sp116-apparmor-zo7gjn9f/workspace/ w,
+  deny /tmp/sp116-apparmor-zo7gjn9f/workspace/src/ w,
+}
+
+# EXPERIMENT ONLY. No executable attachment and no persistent installation.
+# Loaded names are selected explicitly by aa-exec for disposable fixture children.
+# Broad allows deliberately isolate filename protection from other engine policy.
+profile sp116-apparmor-zo7gjn9f-native flags=(attach_disconnected,mediate_deleted) {
+  /** rwklmix,
+  network,
+  unix,
+  signal,
+  ptrace peer=sp116-apparmor-zo7gjn9f-native,
+  # Variant-specific native sandbox support:
+  capability, userns, mount, umount, pivot_root,
+
+  # Dynamic filename matching, including paths created after profile loading.
+  deny /**/[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd] wkl,
+  deny /**/[Cc][Ll][Aa][Uu][Dd][Ee].[Mm][Dd] wkl,
+  # Pin existing protected parents without denying writes to ordinary children.
+  deny /tmp/sp116-apparmor-zo7gjn9f/ w,
+  deny /tmp/sp116-apparmor-zo7gjn9f/workspace/ w,
+  deny /tmp/sp116-apparmor-zo7gjn9f/workspace/src/ w,
+}
