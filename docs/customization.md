@@ -407,3 +407,12 @@ Edit the `gh pr create` call in `handle_post_implementation()` in `scripts/lib/c
 Modifying the dispatch script means you are responsible for keeping your fork in sync with upstream changes. Consider whether a custom prompt or config change can achieve the same goal before modifying the script itself.
 
 If you are using reference mode (calling reusable workflows from the upstream repository), you cannot modify the dispatch script. Use config options and custom prompts instead.
+
+### Retain worker settings when switching engines
+
+The interactive client does not select worker settings. Use the same dispatcher
+and project config from Claude Code, Codex, and label workflows. The opt-in
+[engine profiles](configuration.md#retain-both-engines-settings) keep each engine's
+model, effort and invocation timeout, plus Claude's applicable limits. Configure
+both once, then switch `AGENT_ENGINE` or a phase routing override. Existing prompts,
+schemas, tools, memory, review and test gates keep their shared configuration paths.

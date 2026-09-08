@@ -14,7 +14,7 @@ Supported phase names are `TRIAGE`, `REPLY`, `VALIDATE`, `IMPLEMENT`, `REVIEW`
 (PR feedback revisions), `ADVERSARIAL_PLAN`, `POST_IMPL_REVIEW`,
 `POST_IMPL_RETRY`, `TEST_FIX`, and `CLEANUP`.
 
-Model precedence is:
+With `AGENT_ENGINE_PROFILES=false` (the default), model precedence is:
 
 1. `AGENT_MODEL_<PHASE>`.
 2. `AGENT_MODEL_CLAUDE` or `AGENT_MODEL_CODEX`, according to the phase engine.
@@ -54,7 +54,7 @@ Codex integrations and research settings. Preflight logs the distinction.
 want preflight to reject legacy Claude controls on Codex phases rather than scope
 those settings to Claude. Normal engine selection requires no second opt-in.
 
-Global or phase dollar budgets fail on reachable Codex phases because the adapter
+In legacy mode, global or phase dollar budgets fail on reachable Codex phases because the adapter
 cannot enforce a dollar cap. `AGENT_TIMEOUT` limits elapsed time. In hybrid
 configurations, set budgets only on Claude phases. `AGENT_PERMISSION_MODE_<PHASE>`
 also fails if assigned to a Codex phase; use supported native Codex configuration
@@ -87,6 +87,99 @@ returned data is validated against the original phase contract. Custom schemas
 with unsupported composition, arbitrary object keys or undeclared required fields
 fail configuration validation. Real-provider and full pipeline acceptance are
 still pending; actual-CLI loopback checks are not paid production acceptance.
+
+## Retain both engines' settings
+
+Set `AGENT_ENGINE_PROFILES=true` once to retain Claude and Codex settings in the
+same configuration. It defaults to `false`; setup/update only deliver commented
+entries and never adopt it for you. These profiles are groups of Bash project
+settings, not Codex CLI permission profiles or separate credentials.
+
+Before enabling, move any unqualified model/effort settings intended for Codex
+into `AGENT_MODEL_CODEX[_<PHASE>]` / `AGENT_EFFORT_CODEX[_<PHASE>]`.
+Legacy model, effort, budget, turns and permission settings then become Claude-only
+fallbacks. Existing Claude tool, extra/label-tool and MCP settings stay Claude-only.
+This deliberately stops applying shared dollar budgets to Codex: Codex has no
+harness dollar or turn cap. `AGENT_CODEX_USE_NATIVE_POLICY=false` still rejects
+conflicting legacy Claude tool/MCP/turn/budget/permission controls on Codex phases.
+Native authentication, integrations and sandbox roles keep their existing behavior.
+
+For example, in your existing project config (replace the model placeholders with
+IDs supported by your provider):
+
+```bash
+AGENT_ENGINE_PROFILES="${AGENT_ENGINE_PROFILES:-true}"
+AGENT_ENGINE="${AGENT_ENGINE:-claude}"
+AGENT_MODEL_CLAUDE="${AGENT_MODEL_CLAUDE:-<Claude model ID>}"
+AGENT_MODEL_CODEX="${AGENT_MODEL_CODEX:-<Codex model ID>}"
+AGENT_MODEL_CLAUDE_IMPLEMENT="${AGENT_MODEL_CLAUDE_IMPLEMENT:-<Claude implementation model ID>}"
+AGENT_MODEL_CODEX_IMPLEMENT="${AGENT_MODEL_CODEX_IMPLEMENT:-<Codex implementation model ID>}"
+AGENT_BUDGET_USD_CLAUDE_IMPLEMENT="${AGENT_BUDGET_USD_CLAUDE_IMPLEMENT:-12}"
+AGENT_MAX_TURNS_CLAUDE_IMPLEMENT="${AGENT_MAX_TURNS_CLAUDE_IMPLEMENT:-200}"
+AGENT_PERMISSION_MODE_CLAUDE_IMPLEMENT="${AGENT_PERMISSION_MODE_CLAUDE_IMPLEMENT:-acceptEdits}"
+AGENT_EFFORT_CLAUDE_IMPLEMENT="${AGENT_EFFORT_CLAUDE_IMPLEMENT:-max}"
+AGENT_EFFORT_CODEX_IMPLEMENT="${AGENT_EFFORT_CODEX_IMPLEMENT:-high}"
+AGENT_TIMEOUT_CLAUDE_IMPLEMENT="${AGENT_TIMEOUT_CLAUDE_IMPLEMENT:-3600}"
+AGENT_TIMEOUT_CODEX_IMPLEMENT="${AGENT_TIMEOUT_CODEX_IMPLEMENT:-5400}"
+```
+
+After adoption, change only `AGENT_ENGINE` to switch the default from Claude to
+Codex and back. **To switch all phases**, remove or clear every configured
+`AGENT_ENGINE_<PHASE>` routing override, including incoming environment overrides.
+To retain mixed phases instead, keep an explicit route such as
+`AGENT_ENGINE_POST_IMPL_REVIEW=codex` with `AGENT_ENGINE=claude`, or reverse those
+values for Codex implementation and a fresh Claude review. The review route
+continues to win when you change the global default.
+
+| Setting prefix | Engine namespaces | Default in profile mode |
+| --- | --- | --- |
+| `AGENT_MODEL` | `CLAUDE`, `CODEX` | CLI default |
+| `AGENT_EFFORT` | `CLAUDE`, `CODEX` | Claude `high`; Codex native default |
+| `AGENT_TIMEOUT` | `CLAUDE`, `CODEX` | Shared `AGENT_TIMEOUT`, then `3600` seconds |
+| `AGENT_BUDGET_USD` | `CLAUDE` | No dollar cap |
+| `AGENT_MAX_TURNS` | `CLAUDE` | `200` turns |
+| `AGENT_PERMISSION_MODE` | `CLAUDE` | No explicit CLI flag |
+
+Each prefix accepts both an engine default and an engine+phase override, e.g.
+`AGENT_TIMEOUT_CODEX` and `AGENT_TIMEOUT_CODEX_TEST_FIX`. All ten phase names above
+are supported, including retries, test fixes and cleanup. Only settings for the
+selected reachable engine are validated; retaining inactive settings requires
+neither that engine's CLI nor its authentication.
+
+Resolution is engine+phase → engine default → Claude legacy fallback → defaults
+in the table. Routing is phase engine → global engine → Claude. Claude legacy
+model fallback uses the existing phase model (including same-engine
+REPLY/VALIDATE-to-TRIAGE inheritance), then `AGENT_MODEL`. Legacy budget uses phase
+then global budget; effort uses phase then `AGENT_EFFORT_LEVEL`; permission uses
+the legacy phase value; turns use `AGENT_MAX_TURNS`. There is no new legacy
+TRIAGE inheritance for effort, budget or permission. An explicit engine model
+default outranks every legacy phase model. Model IDs are opaque in profile mode;
+the selected provider checks their availability. Explicit model arguments to
+direct `run_agent` / `run_claude` callers win before preflight; after preflight,
+the frozen phase record wins. Internal phase calls leave this argument empty.
+
+Empty supported optional values inherit. Nonempty `false`, `0`, whitespace and
+malformed values do not disappear into defaults: limits must be positive, timeout
+and turns must be integers, and budgets must be decimal dollar amounts. Claude
+effort accepts `low`, `medium`, `high`, `xhigh`, `max`; Codex accepts `minimal`,
+`low`, `medium`, `high`, `xhigh`. Claude permission modes retain `default`, `acceptEdits`, `auto`,
+`bypassPermissions`, `manual`, `dontAsk`, and `plan`. Explicit unsupported Codex controls such as
+`AGENT_BUDGET_USD_CODEX_IMPLEMENT`, `AGENT_MAX_TURNS_CODEX`, or
+`AGENT_PERMISSION_MODE_CODEX_IMPLEMENT` fail even if assigned an empty string.
+The same applies to Codex-namespaced allow/deny/extra/label-tool and MCP controls;
+there is no translation into a Codex permission policy.
+
+Preflight freezes each phase's model, effort, invocation timeout and applicable
+limits. Its per-phase summary lists the selected model, timeout, limit types and
+source key names; it identifies inactive Claude controls for Codex without
+printing MCP contents, prompts or credentials. Direct callers use the same
+resolver, and per-invocation Claude effort cannot leak into later phases.
+
+A worker timeout bounds one invocation. The enclosing GitHub Actions
+`timeout-minutes` or interactive session deadline is independent and can terminate
+it sooner. There is no fixed 30-minute phase cap and no conversion of dollars or
+turns into elapsed time. Shared prompts, schemas, tests, review gates, locks,
+memory and recovery remain orchestration settings, without engine namespaces.
 
 ## Worker configuration in consuming workflows
 
@@ -124,26 +217,20 @@ and human approval gates. Interactive client linking is described in the
 
 ## Config Loading Order
 
-Configuration values are resolved in this order, with earlier sources taking priority:
+The dispatcher sources these Bash files in order:
 
-1. **Environment variables** set by the caller (e.g., in a workflow step or shell session)
-2. **`config.env`** sourced by the dispatch script at startup
-3. **`scripts/lib/defaults.sh`** fills in anything not already set (using `${VAR:-default}` syntax)
+1. `config.defaults.env` beside the runtime's `scripts/` directory.
+2. The existing file named by `AGENT_CONFIG`, or `config.env` beside `scripts/`.
+3. `scripts/lib/defaults.sh`, which fills missing values.
 
-The dispatch script looks for `config.env` at the path specified by `AGENT_CONFIG`, which defaults to `~/agent-infra/config.env`. You can override this by setting `AGENT_CONFIG` in your environment before calling the dispatch script.
-
-```bash
-# The dispatch script does this internally:
-AGENT_CONFIG="${AGENT_CONFIG:-$HOME/agent-infra/config.env}"
-source "$AGENT_CONFIG"       # your project values
-source lib/defaults.sh       # fills in gaps with defaults
-```
-
-To configure your project, copy `config.env.example` to your config path and edit it:
-
-```bash
-cp config.env.example ~/agent-infra/config.env
-```
+Incoming environment values survive assignments such as
+`AGENT_ENGINE="${AGENT_ENGINE:-claude}"`. An unconditional assignment such as
+`AGENT_ENGINE=claude` in a sourced file overwrites the incoming value; environment
+precedence is not automatic. Later unconditional assignments also replace earlier
+file values. Use the environment-preserving form in shared project defaults,
+and keep sensitive overrides in the existing ignored config or runner secrets.
+Both interactive clients and label workflows use this same loading path when
+invoking the same dispatcher/configuration.
 
 ---
 

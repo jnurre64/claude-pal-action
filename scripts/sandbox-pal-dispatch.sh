@@ -99,7 +99,8 @@ trap '_on_dispatch_exit' EXIT
 # 2. config.env           — gitignored, optional sensitive overrides (GH_TOKEN, etc.)
 # 3. defaults.sh          — fills in anything still unset
 #
-# Environment variables always take highest precedence.
+# Default-style assignments preserve incoming environment values; unconditional
+# assignments in sourced configuration overwrite them.
 
 # Source committed defaults first (standalone mode: .sandbox-pal-dispatch/config.defaults.env)
 AGENT_DEFAULTS="${SCRIPT_DIR}/../config.defaults.env"
@@ -192,7 +193,7 @@ handle_new_issue() {
 
     local result
     set_heartbeat "triage"
-    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "$AGENT_MODEL_TRIAGE" "$AGENT_JSON_SCHEMA_TRIAGE" "TRIAGE")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "" "$AGENT_JSON_SCHEMA_TRIAGE" "TRIAGE")
     log_permission_denials "$result" "triage"
     if ! require_agent_success "$result" "triage"; then
         cleanup_worktree
@@ -345,7 +346,7 @@ handle_issue_reply() {
 
     local result
     set_heartbeat "reply"
-    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "${AGENT_MODEL_REPLY:-}" "$AGENT_JSON_SCHEMA_REPLY" "REPLY")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "" "$AGENT_JSON_SCHEMA_REPLY" "REPLY")
     log_permission_denials "$result" "reply"
     if ! require_agent_success "$result" "reply"; then
         cleanup_worktree
@@ -499,7 +500,7 @@ handle_implement() {
 
     local result
     set_heartbeat "implement"
-    result=$(run_agent "$prompt" "$impl_tools" "$AGENT_MODEL_IMPLEMENT" "" "IMPLEMENT")
+    result=$(run_agent "$prompt" "$impl_tools" "" "" "IMPLEMENT")
     log_permission_denials "$result" "implement"
 
     log "Raw claude output length: ${#result}"
@@ -587,7 +588,7 @@ handle_direct_implement() {
 
     local result
     set_heartbeat "validate"
-    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "${AGENT_MODEL_VALIDATE:-}" "$AGENT_JSON_SCHEMA_VALIDATE" "VALIDATE")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_TRIAGE" "" "$AGENT_JSON_SCHEMA_VALIDATE" "VALIDATE")
     log_permission_denials "$result" "validate"
     if ! require_agent_success "$result" "validate"; then
         cleanup_worktree
@@ -761,7 +762,7 @@ handle_pr_review() {
 
     local result
     set_heartbeat "pr-review"
-    result=$(run_agent "$prompt" "$pr_tools" "$AGENT_MODEL_REVIEW" "" "REVIEW")
+    result=$(run_agent "$prompt" "$pr_tools" "" "" "REVIEW")
     log_permission_denials "$result" "pr-review"
     if ! NUMBER="$issue_num" require_agent_success "$result" "pr-review"; then
         preserve_branch || true
@@ -896,7 +897,7 @@ handle_post_merge() {
 
     local result
     set_heartbeat "cleanup"
-    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_CLEANUP" "$AGENT_MODEL_CLEANUP" "$AGENT_JSON_SCHEMA_CLEANUP" "CLEANUP")
+    result=$(run_agent "$prompt" "$AGENT_ALLOWED_TOOLS_CLEANUP" "" "$AGENT_JSON_SCHEMA_CLEANUP" "CLEANUP")
     log_permission_denials "$result" "cleanup"
     if ! require_agent_success "$result" "cleanup"; then
         preserve_branch || true
