@@ -1,5 +1,19 @@
 # Issue 116: live subscription acceptance
 
+## Current post-merge outcome
+
+The operator merged infrastructure #119 and Recipe Manager SDK repair #39.
+PR #38 was updated with main to head `07245a229d028596032c0e3ffa3e8690711ad4f6`.
+[CI run 34175088664](https://github.com/Frightful-Games/recipe-manager-demo/actions/runs/34175088664)
+passed SDK setup, restore, build and all 15 tests. PR #38 remains open for human
+merge. The earlier CI failure below is historical and is resolved.
+
+The operator explicitly deferred live Claude/hybrid testing to
+[follow-up #120](https://github.com/jnurre64/sandbox-pal-action/issues/120).
+It no longer blocks this integration. No new model session was run.
+
+## Original acceptance session
+
 The operator authorized live tests against `Frightful-Games/recipe-manager-demo`
 for 30 minutes, using existing subscriptions and no separately billed API calls.
 Session: September 7, 2026, 22:47:54–23:17:54 UTC. This allowance applies to the

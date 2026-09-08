@@ -38,5 +38,16 @@
   },
   "claude_smoke": "rate_limit",
   "hybrid_acceptance": "deferred; Claude subscription capacity unavailable",
-  "merged": false
+  "merged": false,
+  "post_merge": {
+    "integration_merge": "0f717a4967e8d6a0dbbccd09915d0012d8262e40",
+    "sdk_repair_merge": "e94f2bb169e311082b82cae40fa67075e845fa68",
+    "acceptance_head": "07245a229d028596032c0e3ffa3e8690711ad4f6",
+    "ci_run": 34175088664,
+    "ci_conclusion": "success",
+    "tests_passed": 15,
+    "hybrid_deferred_by_operator": true,
+    "hybrid_followup_issue": 120,
+    "acceptance_pr_merged": false
+  }
 }
