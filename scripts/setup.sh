@@ -145,6 +145,7 @@ if [ "$SETUP_MODE" = "2" ]; then
         fi
     done
     chmod +x "$AGENT_DIR/scripts/"*.sh
+    link_install_client_skills "$AGENT_DIR"
 
     # Write upstream tracking file for /update support
     echo "  Writing version tracking..."
@@ -287,6 +288,9 @@ echo ""
 
 if [ "$SETUP_MODE" = "1" ]; then
     echo "Mode: Reference (workflows call upstream repo)"
+    echo "For interactive clients, connect the local runtime explicitly:"
+    printf '  bash %q <project-directory> %q\n' "$REPO_ROOT/scripts/link-client-skills.sh" "$REPO_ROOT"
+    echo "Set AGENT_CONFIG to the intended project config.env before invoking dispatch skills."
     echo ""
     echo "Created:"
     echo -e "  ${GREEN}✓${NC} config.env at $CONFIG_FILE"
@@ -298,6 +302,7 @@ else
     echo -e "  ${GREEN}✓${NC} .sandbox-pal-dispatch/scripts/    — dispatch and utility scripts"
     echo -e "  ${GREEN}✓${NC} .sandbox-pal-dispatch/prompts/    — default agent prompts"
     echo -e "  ${GREEN}✓${NC} .sandbox-pal-dispatch/config.env  — project configuration"
+    echo "  Shared skills: .claude/skills/ and .agents/skills/ (existing entries preserved)"
     echo -e "  ${GREEN}✓${NC} .github/workflows/          — workflow files"
 fi
 

@@ -475,6 +475,11 @@ done
 } > "$UPSTREAM_FILE.tmp"
 mv "$UPSTREAM_FILE.tmp" "$UPSTREAM_FILE"
 
+# Older distributions may not yet provide client discovery assets/helpers.
+if type link_install_client_skills &>/dev/null; then
+    link_install_client_skills "$INSTALL_DIR"
+fi
+
 echo -e "  ${GREEN}✓${NC} Updated .upstream to ${LATEST_SHA:0:12}"
 echo ""
 
@@ -501,5 +506,5 @@ if [ "$CONFIG_TOTAL" -gt 0 ]; then
     fi
 fi
 
-echo "Don't forget to commit: git add .sandbox-pal-dispatch/ && git commit -m 'Update sandbox-pal-dispatch from upstream'"
+echo "Review and commit the updated .sandbox-pal-dispatch/ assets and any new .claude/skills/ and .agents/skills/ links."
 echo ""

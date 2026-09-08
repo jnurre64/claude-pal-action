@@ -446,6 +446,11 @@ _asset_fixture() {
         "$ASSET_UPSTREAM/.claude/skills/setup/templates/standalone"
     echo '{"type":"object"}' > "$ASSET_UPSTREAM/schemas/triage.json"
     echo 'skill instructions' > "$ASSET_UPSTREAM/skills/example/SKILL.md"
+    local skill
+    for skill in sp-work sp-status sp-revise sp-post-merge; do
+        mkdir -p "$ASSET_UPSTREAM/.claude/skills/$skill"
+        cp "$SCRIPTS_DIR/../.claude/skills/$skill/SKILL.md" "$ASSET_UPSTREAM/.claude/skills/$skill/"
+    done
     echo 'name: workflow' > "$ASSET_UPSTREAM/.claude/skills/setup/templates/standalone/sandbox-pal-triage.yml"
     sed -i "s|^repo:.*|repo: $ASSET_UPSTREAM|" "$ASSET_INSTALL/.upstream"
     git -C "$ASSET_UPSTREAM" init -q
@@ -549,6 +554,13 @@ MOCK
         cmp "$schema" "$target/.sandbox-pal-dispatch/schemas/$(basename "$schema")"
         grep -F "schemas/$(basename "$schema"):" "$target/.sandbox-pal-dispatch/.upstream"
     done
+    for client in .claude .agents; do
+        for skill in sp-work sp-status sp-revise sp-post-merge; do
+            [ -L "$target/$client/skills/$skill" ]
+            cmp "$ASSET_UPSTREAM/.claude/skills/$skill/SKILL.md" "$target/$client/skills/$skill/SKILL.md"
+            grep -F ".claude/skills/$skill/SKILL.md:" "$target/.sandbox-pal-dispatch/.upstream"
+        done
+    done
     [ -f "$target/.github/workflows/agent-triage.yml" ]
     [ ! -L "$target/.sandbox-pal-dispatch/skills/example/SKILL.md" ]
 }
@@ -605,4 +617,87 @@ MOCK
     [ "$(cat "$ASSET_INSTALL/config.env")" = 'AGENT_BOT_USER="custom-bot"' ]
     grep -q '  schemas/triage.json:' "$ASSET_INSTALL/.upstream"
     grep -q '^pending_assets: 0' "$ASSET_INSTALL/.upstream"
+}
+
+@test "client skills: upgrade exposes installed sources and preserves project customizations" {
+    _asset_fixture
+    local project="$TEST_TEMP_DIR/consumer repo"
+    mkdir -p "$project/.agents/skills/sp-work" "$project/.claude/skills"
+    mv "$ASSET_INSTALL" "$project/.sandbox-pal-dispatch"
+    ASSET_INSTALL="$project/.sandbox-pal-dispatch"
+    echo custom > "$project/.agents/skills/sp-work/SKILL.md"
+    ln -s missing-custom-skill "$project/.claude/skills/sp-revise"
+    echo 'project Codex instructions' > "$project/AGENTS.md"
+    echo 'project Claude instructions' > "$project/CLAUDE.md"
+    run bash "$SCRIPTS_DIR/update.sh" --yes "$ASSET_INSTALL"
+    assert_success
+    assert_output --partial 'Preserved'
+    [ "$(cat "$project/.agents/skills/sp-work/SKILL.md")" = custom ]
+    [ "$(readlink "$project/.claude/skills/sp-revise")" = missing-custom-skill ]
+    [ "$(cat "$project/AGENTS.md")" = 'project Codex instructions' ]
+    [ "$(cat "$project/CLAUDE.md")" = 'project Claude instructions' ]
+    cmp "$ASSET_UPSTREAM/.claude/skills/sp-status/SKILL.md" "$project/.agents/skills/sp-status/SKILL.md"
+    # Moving the whole consuming repository must not strand discovery links.
+    mv "$project" "$TEST_TEMP_DIR/moved repo"
+    project="$TEST_TEMP_DIR/moved repo"
+    ASSET_INSTALL="$project/.sandbox-pal-dispatch"
+    echo 'new status guidance' >> "$ASSET_UPSTREAM/.claude/skills/sp-status/SKILL.md"
+    _asset_commit
+    run bash "$SCRIPTS_DIR/update.sh" --yes "$ASSET_INSTALL"
+    assert_success
+    cmp "$ASSET_UPSTREAM/.claude/skills/sp-status/SKILL.md" "$project/.agents/skills/sp-status/SKILL.md"
+    cmp "$project/.claude/skills/sp-status/SKILL.md" "$project/.agents/skills/sp-status/SKILL.md"
+    echo custom-source > "$project/.agents/skills/sp-status/SKILL.md"
+    echo 'another upstream edit' >> "$ASSET_UPSTREAM/.claude/skills/sp-status/SKILL.md"
+    _asset_commit
+    run bash "$SCRIPTS_DIR/update.sh" --yes "$ASSET_INSTALL"
+    assert_success
+    assert_output --partial 'Needs review'
+    [ "$(cat "$project/.agents/skills/sp-status/SKILL.md")" = custom-source ]
+}
+
+@test "client skills: linked discovery parents are preserved without writing through them" {
+    source "$LIB_DIR/install-assets.sh"
+    local project="$TEST_TEMP_DIR/project" outside="$TEST_TEMP_DIR/outside"
+    mkdir -p "$project/.sandbox-pal-dispatch/.claude/skills/sp-status" "$outside" "$project/.agents"
+    echo skill > "$project/.sandbox-pal-dispatch/.claude/skills/sp-status/SKILL.md"
+    ln -s "$outside" "$project/.claude"
+    ln -s "$outside" "$project/.agents/skills"
+    run link_install_client_skills "$project/.sandbox-pal-dispatch"
+    assert_success
+    assert_output --partial 'configure shared skill discovery manually'
+    [ -z "$(ls -A "$outside")" ]
+}
+
+@test "client skills: deferred upstream skills do not create dangling discovery links" {
+    _asset_fixture
+    local project="$TEST_TEMP_DIR/project"
+    mkdir -p "$project"
+    mv "$ASSET_INSTALL" "$project/.sandbox-pal-dispatch"
+    ASSET_INSTALL="$project/.sandbox-pal-dispatch"
+    run bash -c 'bash "$1/update.sh" "$2" < /dev/null' _ "$SCRIPTS_DIR" "$ASSET_INSTALL"
+    assert_success
+    [ ! -e "$project/.agents" ]
+    [ ! -e "$project/.claude" ]
+    run bash "$SCRIPTS_DIR/update.sh" --yes "$ASSET_INSTALL"
+    assert_success
+    [ -f "$project/.agents/skills/sp-work/SKILL.md" ]
+}
+
+@test "engine migration: update discovers all phase settings without activating Codex or replacing project choices" {
+    _asset_fixture
+    cp "$LIB_DIR/config-vars.sh" "$ASSET_UPSTREAM/scripts/lib/"
+    cp "$SCRIPTS_DIR/../config.defaults.env.example" "$ASSET_UPSTREAM/config.defaults.env.example"
+    printf 'config_vars:\n  - AGENT_BOT_USER\n' >> "$ASSET_INSTALL/.upstream"
+    printf 'AGENT_ENGINE=claude\nAGENT_MODEL_CLAUDE=custom-model\n' > "$ASSET_INSTALL/config.env"
+    _asset_commit
+    run bash "$SCRIPTS_DIR/update.sh" --yes "$ASSET_INSTALL"
+    assert_success
+    grep -qx 'AGENT_ENGINE=claude' "$ASSET_INSTALL/config.env"
+    grep -qx 'AGENT_MODEL_CLAUDE=custom-model' "$ASSET_INSTALL/config.env"
+    ! grep -q '^AGENT_CODEX_USE_NATIVE_POLICY=true' "$ASSET_INSTALL/config.env"
+    for phase in TRIAGE REPLY VALIDATE IMPLEMENT REVIEW ADVERSARIAL_PLAN POST_IMPL_REVIEW POST_IMPL_RETRY TEST_FIX CLEANUP; do
+        grep -qx "  - AGENT_ENGINE_$phase" "$ASSET_INSTALL/.upstream"
+        grep -qx "  - AGENT_MODEL_$phase" "$ASSET_INSTALL/.upstream"
+    done
 }
