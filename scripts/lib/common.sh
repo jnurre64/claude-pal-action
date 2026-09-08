@@ -519,10 +519,30 @@ $(_ledger_outstanding_summary)
             fi
         fi
 
-        local pr_body
+        local pr_body test_status="Not configured" review_status="Disabled"
+        if [ -n "${AGENT_TEST_COMMAND:-}" ]; then
+            test_status="Passed"
+        fi
+        if [ "${AGENT_POST_IMPL_REVIEW:-false}" = true ]; then
+            review_status="Approved"
+            if [ "$review_rc" -eq 2 ]; then
+                review_status="Unresolved — retry limit reached; human arbitration required"
+            fi
+        fi
         pr_body="${unresolved_header}## Automated PR for #${NUMBER}
 
-This PR was created by the Claude Code agent.
+This PR was created by the agent pipeline.
+
+### Dispatcher gate results
+
+- Pre-PR tests: ${test_status}
+- Post-implementation review: ${review_status}
+
+GitHub CI is reported separately by the PR checks.
+
+### Implementation worker report
+
+Captured before the dispatcher ran its gates and opened this PR:
 
 ${claude_output:0:2000}
 ${ledger_summary}$(denials_report_section)

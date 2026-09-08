@@ -1035,3 +1035,40 @@ _setup_post_impl() {
     mark_issue_done "55"
     assert_equal "$NUMBER" "99"
 }
+
+@test "REGRESSION v1.2.0: PR distinguishes final gates from earlier worker limitations for either engine" {
+    _setup_post_impl
+    export AGENT_TEST_COMMAND=true
+    apply_rules_files() { :; }
+    run_post_impl_review_loop() { return 0; }
+    for engine in claude codex; do
+        export AGENT_ENGINE="$engine"
+        run handle_post_implementation "" "Test issue" "Tests blocked in worker; no PR opened."
+        assert_success
+        run cat "${TEST_TEMP_DIR}/mock_calls_gh"
+        assert_output --partial "This PR was created by the agent pipeline."
+        refute_output --partial "created by the Claude Code agent"
+        assert_output --partial "Pre-PR tests: Passed"
+        assert_output --partial "Post-implementation review: Approved"
+        assert_output --partial "Captured before the dispatcher ran its gates and opened this PR:"
+        assert_output --partial "Tests blocked in worker; no PR opened."
+    done
+}
+
+@test "REGRESSION v1.2.0: PR does not claim disabled or unresolved gates passed" {
+    _setup_post_impl
+    export AGENT_POST_IMPL_REVIEW=false
+    run handle_post_implementation "" "Test issue" "implemented"
+    assert_success
+    run cat "${TEST_TEMP_DIR}/mock_calls_gh"
+    assert_output --partial "Pre-PR tests: Not configured"
+    assert_output --partial "Post-implementation review: Disabled"
+    refute_output --partial "Post-implementation review: Approved"
+    export AGENT_POST_IMPL_REVIEW=true
+    run_post_impl_review_loop() { return 2; }
+    run handle_post_implementation "" "Test issue" "implemented"
+    assert_success
+    run cat "${TEST_TEMP_DIR}/mock_calls_gh"
+    assert_output --partial "Post-implementation review: Unresolved"
+    refute_output --partial "Post-implementation review: Approved"
+}
