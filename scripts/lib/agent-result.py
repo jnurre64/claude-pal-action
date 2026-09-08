@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate configured schemas and normalize a single Claude result.
+"""Validate schemas and normalize Claude results or a single Codex exec turn.
 
 No remote/file schema retrieval. Diagnostics never echo response or schema data.
 """
@@ -129,6 +129,85 @@ def scrub(value):
     return value
 
 
+def normalize_codex(raw, phase, code, schema_text, final_text, stderr=""):
+    """Translate native exec events into the existing result contract.
+
+    This parser does not invoke Codex. The adapter must supply a
+    fresh, private --output-last-message capture as well as the JSONL stream.
+    Tool errors may be recovered; only turn-level failures are terminal failures.
+    """
+    data = {}
+    thread_seen = started = terminal = False
+    message = None
+    malformed = False
+    try:
+        for line in raw.splitlines():
+            if not line.strip():
+                continue
+            event = loads(line)
+            if not isinstance(event, dict) or not isinstance(event.get("type"), str):
+                raise ValueError("Invalid event")
+            kind = event["type"]
+            if terminal:
+                raise ValueError("Events after terminal result")
+            if kind == "thread.started":
+                if thread_seen or started or not isinstance(event.get("thread_id"), str) or not event["thread_id"]:
+                    raise ValueError("Invalid thread start")
+                thread_seen = True
+            elif kind == "turn.started":
+                if not thread_seen or started:
+                    raise ValueError("Invalid turn start")
+                started = True
+            elif kind == "item.completed":
+                item = event.get("item")
+                if not isinstance(item, dict):
+                    raise ValueError("Invalid item")
+                if item.get("type") == "agent_message":
+                    if not started or not isinstance(item.get("text"), str):
+                        raise ValueError("Invalid message")
+                    message = item["text"]
+            elif kind in ("turn.completed", "turn.failed"):
+                if not started:
+                    raise ValueError("Terminal event without turn")
+                terminal = True
+                if kind == "turn.failed":
+                    data.update(is_error=True, error=event.get("error") or "Worker turn failed")
+                usage = event.get("usage")
+                if isinstance(usage, dict):
+                    data["usage"] = {"input_tokens": usage.get("input_tokens"),
+                                     "output_tokens": usage.get("output_tokens"),
+                                     "cache_read_input_tokens": usage.get("cached_input_tokens")}
+            elif kind == "error":
+                # A stream-level error must not be mistaken for an item-level
+                # command failure that the agent subsequently recovered from.
+                data.update(is_error=True, error=event.get("message") or "Worker stream error")
+        if not terminal or message is None or not message.strip():
+            malformed = True
+        # Compare before redaction: different secrets must not become matching
+        # final messages merely because both redact to the same placeholder.
+        if final_text is None or message is None or final_text.rstrip("\n") != message.rstrip("\n"):
+            malformed = True
+    except (ValueError, TypeError):
+        malformed = True
+
+    if message is not None:
+        data["result"] = message
+    if not malformed and not data.get("is_error"):
+        data["subtype"] = "success"
+        if schema_text:
+            try:
+                data["structured_output"] = loads(final_text)
+            except (ValueError, TypeError):
+                pass  # Shared schema validation reports a missing/invalid result.
+
+    result = normalize(json.dumps(data), phase, code, schema_text, stderr)
+    result["engine"] = "codex"
+    if malformed and not code and not data.get("is_error"):
+        result.update(status="failed", error=dict(kind="transport", message="Incomplete or inconsistent Codex result"),
+                      structured_output=None, schema_status="not_checked" if schema_text else "disabled")
+    return result
+
+
 def main():
     mode = sys.argv[1]
     if mode == "check-dependency":
@@ -142,6 +221,15 @@ def main():
         with open(sys.argv[5], encoding="utf-8", errors="replace") as stream:
             stderr = stream.read()
         print(json.dumps(normalize(sys.stdin.read(), sys.argv[2], int(sys.argv[3]), sys.argv[4], stderr), separators=(",", ":")))
+    elif mode == "normalize-codex":
+        with open(sys.argv[5], encoding="utf-8", errors="replace") as stream:
+            stderr = stream.read()
+        try:
+            with open(sys.argv[6], encoding="utf-8") as stream:
+                final_text = stream.read()
+        except (OSError, UnicodeError):
+            final_text = None
+        print(json.dumps(normalize_codex(sys.stdin.read(), sys.argv[2], int(sys.argv[3]), sys.argv[4], final_text, stderr), separators=(",", ":")))
     else:
         raise ValueError("Unknown operation")
 

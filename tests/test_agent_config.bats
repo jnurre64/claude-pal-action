@@ -118,10 +118,12 @@ _source_config() {
     _source_config
     AGENT_TEST_COMMAND=true
     AGENT_ENGINE_TEST_FIX=codex
+    engine_codex_preflight() { echo 'Codex authentication is unavailable' >&2; return 1; }
     run agent_preflight_dispatch implement
     assert_failure
-    assert_output --partial 'TEST_FIX: Codex worker execution is not enabled'
+    assert_output --partial 'Codex authentication is unavailable'
     [ ! -f "$TEST_TEMP_DIR/model" ]
+    engine_codex() { agent_failure TEST_FIX configuration 'Codex authentication is unavailable' codex; }
     run run_agent prompt Read '' '' TEST_FIX
     echo "$output" | jq -e '.engine == "codex" and .status == "failed" and .error.kind == "configuration"'
     [ ! -f "$TEST_TEMP_DIR/model" ]

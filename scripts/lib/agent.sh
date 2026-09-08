@@ -3,6 +3,8 @@ AGENT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091  # Runtime sibling path.
 source "${AGENT_LIB_DIR}/engine-claude.sh"
 # shellcheck disable=SC1091
+source "${AGENT_LIB_DIR}/engine-codex.sh"
+# shellcheck disable=SC1091
 source "${AGENT_LIB_DIR}/agent-config.sh"
 
 # stdout is always one envelope, including preflight and process failures.
@@ -26,12 +28,17 @@ run_agent() (
     fi
     engine=$(jq -r .engine <<< "$resolved")
     model=$(jq -r .model <<< "$resolved")
-    if [ "$engine" != claude ]; then
-        agent_failure "$phase" configuration 'Codex worker execution is not enabled; permission verification is pending' "$engine"
+    if [ "$engine" = codex ] && [ "$#" -ge 2 ]; then
+        # An explicitly empty native tool argument must not inherit a Claude
+        # implementation allowlist in a mixed implementation/review dispatch.
+        allowed_tools="$2"
+    fi
+    if ! agent_engine_enabled "$engine"; then
+        agent_failure "$phase" configuration 'Unsupported worker engine' "$engine"
         return
     fi
     if ! python3 "${AGENT_LIB_DIR}/agent-result.py" check-dependency >/dev/null 2>&1; then
-        agent_failure "$phase" configuration 'Install worker dependencies: python3 -m pip install -r scripts/requirements-worker.txt'
+        agent_failure "$phase" configuration 'Install worker dependencies: python3 -m pip install -r scripts/requirements-worker.txt' "$engine"
         return
     fi
     if [ -n "$schema" ] && [ -z "${AGENT_PHASE_MAP:-}" ]; then
@@ -39,9 +46,27 @@ run_agent() (
             schema="${CONFIG_DIR}/${schema}"
         fi
         if ! schema_json=$(python3 "${AGENT_LIB_DIR}/agent-result.py" check-schema "$schema" 2>/dev/null); then
-            agent_failure "$phase" configuration 'Configured schema is missing, invalid, or uses unsupported external references'
+            agent_failure "$phase" configuration 'Configured schema is missing, invalid, or uses unsupported external references' "$engine"
             return
         fi
+    fi
+    if [ "$engine" = codex ]; then
+        local policy
+        if [ -n "${AGENT_PHASE_MAP:-}" ]; then
+            policy=$(jq -c '.policy // null' <<< "$resolved")
+        elif ! policy=$(engine_codex_policy "$phase" 2>/dev/null); then
+            agent_failure "$phase" configuration 'Unsupported Codex phase policy; run dispatch preflight for details' codex
+            return
+        fi
+        if [ "$policy" = null ]; then
+            agent_failure "$phase" configuration 'Missing preflighted Codex policy' codex
+        elif raw=$(engine_codex "$prompt" "$allowed_tools" "$model" "$schema_json" "$phase" "$policy") &&
+            jq -se --arg phase "$phase" 'length == 1 and (.[0] | .version == 1 and .engine == "codex" and .phase == $phase and (.status == "success" or .status == "failed" or .status == "timed_out" or .status == "cancelled"))' <<< "$raw" >/dev/null 2>&1; then
+            printf '%s\n' "$raw"
+        else
+            agent_failure "$phase" transport 'Unable to invoke or normalize Codex worker' codex
+        fi
+        return
     fi
     # Unique restricted capture files; never reuse a phase's previous output.
     # shellcheck disable=SC2153  # AGENT_LOG_DIR comes from dispatch configuration.

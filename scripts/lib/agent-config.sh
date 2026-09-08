@@ -78,7 +78,7 @@ agent_check_schema() {
 }
 
 agent_preflight_dispatch() {
-    local phases phase resolved engine schema var map='{}' checked_claude=false
+    local phases phase resolved engine schema var map='{}' checked_claude=false checked_codex=false policy
     phases=$(agent_reachable_phases "$1") || return 1
     [ -n "$phases" ] || return 0
     if ! python3 "${AGENT_LIB_DIR}/agent-result.py" check-dependency >/dev/null 2>&1; then
@@ -88,9 +88,9 @@ agent_preflight_dispatch() {
     for phase in $phases; do
         resolved=$(agent_resolve_phase "$phase") || return 1
         engine=$(jq -r .engine <<< "$resolved")
-        # No fallback while the Codex permission/capability proof is pending.
-        if [ "$engine" = codex ]; then
-            echo "${phase}: Codex worker execution is not enabled; permission verification is pending" >&2
+        # Validate the selected engine; never fall back to a different engine.
+        if ! agent_engine_enabled "$engine"; then
+            echo "${phase}: Unsupported worker engine" >&2
             return 1
         fi
         var="AGENT_JSON_SCHEMA_${phase}"
@@ -98,11 +98,27 @@ agent_preflight_dispatch() {
             echo "${phase}: configured schema is missing, invalid, or unsupported" >&2
             return 1
         fi
-        engine_claude_check_policy "$phase" || return 1
-        if [ "$checked_claude" = false ]; then
-            engine_claude_preflight || return 1
-            checked_claude=true
-        fi
+        case "$engine" in
+            claude)
+                engine_claude_check_policy "$phase" || return 1
+                if [ "$checked_claude" = false ]; then
+                    engine_claude_preflight || return 1
+                    checked_claude=true
+                fi ;;
+            codex)
+                policy=$(engine_codex_policy "$phase") || return 1
+                if ! printf '%s' "$schema" | python3 "${AGENT_LIB_DIR}/codex-worker.py" check-phase-schema "$phase"; then
+                    echo "${phase}: unsupported Codex phase schema" >&2; return 1
+                fi
+                if [ "$checked_codex" = false ]; then
+                    engine_codex_preflight || return 1
+                    checked_codex=true
+                fi
+                if [ "$(jq -r .use_native_policy <<< "$policy")" = true ]; then
+                    log "${phase}: Codex native policy selected; Claude tool lists (including label tools), MCP configuration and turn caps apply only to Claude. Codex uses native integrations and AGENT_TIMEOUT; no turn or dollar cap is claimed."
+                fi
+                resolved=$(jq --argjson policy "$policy" '. + {policy:$policy}' <<< "$resolved") ;;
+        esac
         resolved=$(jq --arg schema "$schema" '. + {schema_json:$schema}' <<< "$resolved")
         map=$(jq -c --arg phase "$phase" --argjson config "$resolved" '. + {($phase):$config}' <<< "$map")
     done
@@ -112,7 +128,7 @@ agent_preflight_dispatch() {
     # shellcheck disable=SC2034  # Consumed by run_agent in agent.sh.
     readonly AGENT_PHASE_MAP
     local name
-    for name in AGENT_TIMEOUT AGENT_MAX_TURNS AGENT_BUDGET_USD AGENT_EFFORT_LEVEL \
+    for name in AGENT_CODEX_USE_NATIVE_POLICY AGENT_TIMEOUT AGENT_MAX_TURNS AGENT_MAX_TURNS_EXPLICIT AGENT_BUDGET_USD AGENT_EFFORT_LEVEL \
         AGENT_MCP_CONFIG AGENT_STRICT_MCP AGENT_SESSION_PERSISTENCE AGENT_ADD_DIRS \
         AGENT_MEMORY_FILE AGENT_MEMORY_DIR AGENT_DISALLOWED_TOOLS AGENT_EXTRA_TOOLS \
         AGENT_ADVERSARIAL_PLAN_REVIEW AGENT_POST_IMPL_REVIEW AGENT_POST_IMPL_REVIEW_MAX_RETRIES \

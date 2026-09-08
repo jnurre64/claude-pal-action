@@ -256,7 +256,7 @@ _source_handlers() {
     source "${LIB_DIR}/install-assets.sh"
     local inventory
     inventory=$(list_install_assets "${SCRIPTS_DIR}/.." | tr '\0' '\n')
-    for file in scripts/lib/agent.sh scripts/lib/engine-claude.sh scripts/lib/agent-result.py scripts/requirements-worker.txt; do
+    for file in scripts/lib/agent.sh scripts/lib/engine-claude.sh scripts/lib/engine-codex.sh scripts/lib/agent-result.py scripts/lib/codex-worker.py scripts/requirements-worker.txt; do
         [[ "$inventory" == *"$file"* ]]
     done
 }
