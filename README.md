@@ -30,6 +30,9 @@ Keep both engines' models, effort and limits in one project config with the
 opt-in [engine settings profiles](docs/configuration.md#retain-both-engines-settings).
 After adoption, changing the default or phase engine selects its stored settings
 from either interactive client or label workflow.
+[Named dispatch profiles](docs/configuration.md#named-dispatch-profiles) add
+`agent-profile.sh capture my-hybrid`, `use codex-only`, and `use my-hybrid`
+for one-command switching and restoration across every phase.
 
 ## How It Works
 

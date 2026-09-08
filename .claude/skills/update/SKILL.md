@@ -179,3 +179,15 @@ checksums:
   prompts/review.md: "sha256:..."
   labels.txt: "sha256:..."
 ```
+
+## Named dispatch profile assets
+
+The shared installation inventory delivers and checksums
+`agent-profiles.example.json`, `scripts/agent-profile.sh` and its library modules.
+Do not copy the example over an active `agent-profiles.json`, replace saved
+`.agent-profile` selection, or enable `AGENT_ENGINE_PROFILES` during setup/update.
+Preserve existing project configuration on repeated setup. Add `.agent-profile`
+(or the configured selection path) and the catalog capture lock directory to
+the consuming project's ignore rules. For explicit adoption, follow
+`docs/configuration.md` → “Named dispatch profiles”: migrate legacy Codex
+settings, capture actual legacy routing, preview, then select a profile.

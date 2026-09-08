@@ -416,3 +416,13 @@ and project config from Claude Code, Codex, and label workflows. The opt-in
 model, effort and invocation timeout, plus Claude's applicable limits. Configure
 both once, then switch `AGENT_ENGINE` or a phase routing override. Existing prompts,
 schemas, tools, memory, review and test gates keep their shared configuration paths.
+
+## Saving worker configurations
+
+Use [named dispatch profiles](configuration.md#named-dispatch-profiles) to save
+legacy routes and switch all phases together. Run `scripts/agent-profile.sh`
+from the runtime with the same `AGENT_CONFIG` used by either client or Actions.
+A profile can override engine-qualified models and effort while keeping tests,
+prompts, gates and authentication shared. Setup/update distribute
+`agent-profiles.example.json`; your active catalog and local selection remain
+project-owned and are never automatically enabled or overwritten.

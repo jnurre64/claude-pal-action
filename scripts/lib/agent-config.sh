@@ -1,4 +1,7 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/named-profiles.sh"
+
 # Resolve only phases reachable by this event. No worker or GitHub mutations.
 agent_reachable_phases() {
     local event="$1" implementation=false
@@ -38,13 +41,12 @@ agent_reachable_phases() {
 
 agent_resolve_phase() {
     local phase="$1" explicit_model="${2:-}" engine model var default_engine="${AGENT_ENGINE:-claude}"
-    case "$phase" in
-        ''|TRIAGE|REPLY|VALIDATE|IMPLEMENT|REVIEW|ADVERSARIAL_PLAN|POST_IMPL_REVIEW|POST_IMPL_RETRY|TEST_FIX|CLEANUP) ;;
-        *) echo 'Unknown worker phase' >&2; return 1 ;;
-    esac
+    agent_profiles_prepare || return 1
+    if ! agent_phase_valid "$phase"; then echo 'Unknown worker phase' >&2; return 1; fi
+    if [ "${AGENT_SELECTED_PROFILE:-legacy}" != legacy ]; then default_engine=$(jq -r .engine <<< "$AGENT_NAMED_PROFILE"); fi
     case "$default_engine" in claude|codex) ;; *) echo 'AGENT_ENGINE must be claude or codex' >&2; return 1 ;; esac
     var="AGENT_ENGINE_${phase}"
-    engine="${!var:-$default_engine}"
+    engine=$(agent_route_engine "$phase") || return 1
     case "$engine" in claude|codex) ;; *) echo "AGENT_ENGINE_${phase} must be claude or codex" >&2; return 1 ;; esac
     case "${AGENT_ENGINE_PROFILES:-false}" in
         true)
@@ -89,12 +91,10 @@ agent_setting_registry() {
 # Empty optional settings inherit; false and 0 are values, never absence.
 # All indirect names are constructed from a validated engine/phase/setting.
 agent_profile_setting() {
-    local engine="$1" phase="$2" setting="$3" key value='' source=default
+    local engine="$1" phase="$2" setting="$3" key value='' source=default overlay="${AGENT_NAMED_PROFILE:-}"
+    overlay="${overlay:-'{}'}"
     case "$engine" in claude|codex) ;; *) return 1 ;; esac
-    case "$phase" in
-        ''|TRIAGE|REPLY|VALIDATE|IMPLEMENT|REVIEW|ADVERSARIAL_PLAN|POST_IMPL_REVIEW|POST_IMPL_RETRY|TEST_FIX|CLEANUP) ;;
-        *) return 1 ;;
-    esac
+    agent_phase_valid "$phase" || return 1
     case "$setting" in MODEL|EFFORT|TIMEOUT|BUDGET_USD|PERMISSION_MODE|MAX_TURNS) ;; *) return 1 ;; esac
     local keys=("AGENT_${setting}_${engine^^}_${phase}" "AGENT_${setting}_${engine^^}")
     if [ "$engine" = claude ]; then
@@ -102,7 +102,7 @@ agent_profile_setting() {
             MODEL)
                 keys+=("AGENT_MODEL_${phase}")
                 if [[ "$phase" = REPLY || "$phase" = VALIDATE ]] &&
-                    [ "${AGENT_ENGINE_TRIAGE:-${AGENT_ENGINE:-claude}}" = claude ]; then
+                    [ "$(agent_route_engine TRIAGE)" = claude ]; then
                     keys+=(AGENT_MODEL_TRIAGE)
                 fi
                 keys+=(AGENT_MODEL) ;;
@@ -114,7 +114,12 @@ agent_profile_setting() {
     fi
     [ "$setting" != TIMEOUT ] || keys+=(AGENT_TIMEOUT)
     for key in "${keys[@]}"; do
-        if [ -n "${!key:-}" ]; then
+        if [ "${AGENT_SELECTED_PROFILE:-legacy}" != legacy ] && jq -e --arg key "$key" '.settings | has($key)' <<< "$overlay" >/dev/null 2>&1; then
+            value=$(jq -r --arg key "$key" '.settings[$key]' <<< "$AGENT_NAMED_PROFILE")
+            [ -n "$value" ] || continue
+            source="profile:${AGENT_SELECTED_PROFILE}:$key"
+            break
+        elif [ -n "${!key:-}" ]; then
             value="${!key}" source="$key"
             break
         fi
@@ -132,10 +137,7 @@ agent_profile_setting() {
 agent_phase_settings() {
     local engine="$1" phase="$2" setting entry var value settings='{}' sources='{}'
     case "$engine" in claude|codex) ;; *) echo 'Unknown worker engine' >&2; return 1 ;; esac
-    case "$phase" in
-        ''|TRIAGE|REPLY|VALIDATE|IMPLEMENT|REVIEW|ADVERSARIAL_PLAN|POST_IMPL_REVIEW|POST_IMPL_RETRY|TEST_FIX|CLEANUP) ;;
-        *) echo 'Unknown worker phase' >&2; return 1 ;;
-    esac
+    if ! agent_phase_valid "$phase"; then echo 'Unknown worker phase' >&2; return 1; fi
     if [ "${AGENT_ENGINE_PROFILES:-false}" = true ]; then
         if [ "$engine" = codex ]; then
             # Presence, including an empty/false/zero assignment, is an explicit
@@ -174,6 +176,7 @@ agent_phase_settings() {
 # The same record is validated and executed, whether called directly or by dispatch.
 agent_resolve_config() {
     local phase="$1" resolved engine settings policy
+    agent_profiles_prepare || return 1
     resolved=$(agent_resolve_phase "$phase" "${2:-}") || return 1
     engine=$(jq -r .engine <<< "$resolved")
     settings=$(agent_phase_settings "$engine" "$phase") || return 1
@@ -182,7 +185,8 @@ agent_resolve_config() {
         codex) policy=$(engine_codex_policy "$phase" "$settings") || return 1 ;;
     esac
     jq -c --argjson settings "$settings" --argjson policy "$policy" \
-        '. + {settings:$settings,policy:$policy}' <<< "$resolved"
+        --arg profile "${AGENT_SELECTED_PROFILE:-legacy}" --arg selection_source "${AGENT_PROFILE_SOURCE:-legacy}" \
+        '. + {settings:$settings,policy:$policy,profile:$profile,selection_source:$selection_source}' <<< "$resolved"
 }
 
 agent_check_schema() {
@@ -196,6 +200,7 @@ agent_check_schema() {
 
 agent_preflight_dispatch() {
     local phases phase resolved engine schema var map='{}' checked_claude=false checked_codex=false
+    agent_profiles_prepare || return 1
     phases=$(agent_reachable_phases "$1") || return 1
     [ -n "$phases" ] || return 0
     if ! python3 "${AGENT_LIB_DIR}/agent-result.py" check-dependency >/dev/null 2>&1; then
@@ -239,6 +244,8 @@ agent_preflight_dispatch() {
     AGENT_PHASE_MAP="$map"
     # shellcheck disable=SC2034  # Consumed by run_agent in agent.sh.
     readonly AGENT_PHASE_MAP
+    # shellcheck disable=SC2034 # Shared snapshot consumed by named-profiles.sh.
+    readonly AGENT_PROFILE_READY AGENT_SELECTED_PROFILE AGENT_PROFILE_SOURCE AGENT_PROFILE_CATALOG AGENT_NAMED_PROFILE AGENT_PROFILES_LOADED
     readonly AGENT_ENGINE_PROFILES
     local name
     for name in AGENT_CODEX_USE_NATIVE_POLICY AGENT_TIMEOUT AGENT_MAX_TURNS AGENT_MAX_TURNS_EXPLICIT AGENT_BUDGET_USD AGENT_EFFORT_LEVEL \
@@ -266,6 +273,7 @@ agent_preflight_dispatch() {
                 readonly "$name" ;;
         esac
     done < <(compgen -A variable AGENT_)
+    log "Dispatch profile: ${AGENT_SELECTED_PROFILE} (selection: ${AGENT_PROFILE_SOURCE}); named profiles own all phase routes"
     for phase in $phases; do
         log "Worker ${phase}: $(jq -r --arg phase "$phase" '
             .[$phase] | .engine + " model=" + (if .model == "" then "CLI default" else .model end)

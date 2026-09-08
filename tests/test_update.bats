@@ -720,3 +720,47 @@ MOCK
         done
     done
 }
+
+@test "named profiles: unattended update delivers example and helper preserves custom catalog state and config" {
+    _asset_fixture
+    cp "$SCRIPTS_DIR/../agent-profiles.example.json" "$ASSET_UPSTREAM/"
+    cp "$SCRIPTS_DIR/agent-profile.sh" "$ASSET_UPSTREAM/scripts/"
+    cp "$LIB_DIR/named-profiles.sh" "$LIB_DIR/config-load.sh" "$ASSET_UPSTREAM/scripts/lib/"
+    _asset_commit
+    echo '{"version":1,"profiles":{"mine":{"engine":"codex"}}}' > "$ASSET_INSTALL/agent-profiles.json"
+    echo mine > "$ASSET_INSTALL/.agent-profile"
+    echo 'AGENT_ENGINE_PROFILES=true' > "$ASSET_INSTALL/config.env"
+    cp "$ASSET_INSTALL/agent-profiles.json" "$TEST_TEMP_DIR/catalog"
+    run bash "$SCRIPTS_DIR/update.sh" --yes "$ASSET_INSTALL"
+    assert_success
+    cmp "$TEST_TEMP_DIR/catalog" "$ASSET_INSTALL/agent-profiles.json"
+    [ "$(cat "$ASSET_INSTALL/.agent-profile")" = mine ]
+    [ "$(cat "$ASSET_INSTALL/config.env")" = AGENT_ENGINE_PROFILES=true ]
+    for file in agent-profiles.example.json scripts/agent-profile.sh scripts/lib/named-profiles.sh scripts/lib/config-load.sh; do
+        cmp "$ASSET_UPSTREAM/$file" "$ASSET_INSTALL/$file"
+        grep -F "$file:" "$ASSET_INSTALL/.upstream"
+    done
+}
+
+@test "named profiles: repeated standalone setup preserves adopted config catalog and selection" {
+    _asset_fixture
+    cp "$SCRIPTS_DIR/setup.sh" "$ASSET_UPSTREAM/scripts/"
+    cp "$SCRIPTS_DIR/../agent-profiles.example.json" "$ASSET_UPSTREAM/"
+    cp "$LIB_DIR/config-vars.sh" "$ASSET_UPSTREAM/scripts/lib/"
+    cp "$SCRIPTS_DIR/../config.defaults.env.example" "$ASSET_UPSTREAM/"
+    printf '#!/bin/bash\nexit 0\n' > "$ASSET_UPSTREAM/scripts/check-prereqs.sh"
+    local target="$TEST_TEMP_DIR/consumer"
+    mkdir -p "$target/.sandbox-pal-dispatch"
+    printf 'AGENT_ENGINE_PROFILES=true\nAGENT_PROFILE=mine\n' > "$target/.sandbox-pal-dispatch/config.env"
+    echo '{"version":1,"profiles":{"mine":{"engine":"codex"}}}' > "$target/.sandbox-pal-dispatch/agent-profiles.json"
+    echo mine > "$target/.sandbox-pal-dispatch/.agent-profile"
+    cp "$target/.sandbox-pal-dispatch/config.env" "$TEST_TEMP_DIR/before"
+    printf '1\nowner/repo\ntest-bot\nmain\n\n\n%s\nn\nn\n' "$target" > "$TEST_TEMP_DIR/answers"
+    run bash -c 'bash "$1/scripts/setup.sh" < "$2"' _ "$ASSET_UPSTREAM" "$TEST_TEMP_DIR/answers"
+    assert_success
+    cmp "$TEST_TEMP_DIR/before" "$target/.sandbox-pal-dispatch/config.env"
+    [ "$(cat "$target/.sandbox-pal-dispatch/.agent-profile")" = mine ]
+    jq -e '.profiles.mine.engine == "codex"' "$target/.sandbox-pal-dispatch/agent-profiles.json"
+    grep -F 'agent-profiles.example.json:' "$target/.sandbox-pal-dispatch/.upstream"
+    grep -qx '  - AGENT_PROFILE' "$target/.sandbox-pal-dispatch/.upstream"
+}

@@ -102,32 +102,8 @@ trap '_on_dispatch_exit' EXIT
 # Default-style assignments preserve incoming environment values; unconditional
 # assignments in sourced configuration overwrite them.
 
-# Source committed defaults first (standalone mode: .sandbox-pal-dispatch/config.defaults.env)
-AGENT_DEFAULTS="${SCRIPT_DIR}/../config.defaults.env"
-if [ -f "$AGENT_DEFAULTS" ]; then
-    # shellcheck source=/dev/null
-    source "$AGENT_DEFAULTS"
-    CONFIG_DIR="$(cd "$(dirname "$AGENT_DEFAULTS")" && pwd)"
-    export CONFIG_DIR
-fi
-
-# Source optional overrides (may contain secrets — never commit this file)
-AGENT_CONFIG="${AGENT_CONFIG:-}"
-if [ -n "$AGENT_CONFIG" ] && [ -f "$AGENT_CONFIG" ]; then
-    # shellcheck source=/dev/null
-    source "$AGENT_CONFIG"
-    CONFIG_DIR="$(cd "$(dirname "$AGENT_CONFIG")" && pwd)"
-    export CONFIG_DIR
-elif [ -f "${SCRIPT_DIR}/../config.env" ]; then
-    # shellcheck source=/dev/null
-    source "${SCRIPT_DIR}/../config.env"
-    CONFIG_DIR="$(cd "$(dirname "${SCRIPT_DIR}/../config.env")" && pwd)"
-    export CONFIG_DIR
-fi
-
-# Source defaults (fills in anything not set by either config file)
-# shellcheck source=lib/defaults.sh
-source "${SCRIPT_DIR}/lib/defaults.sh"
+source "${SCRIPT_DIR}/lib/config-load.sh"
+agent_load_project_config
 
 # Enable high effort extended thinking for all agent runs
 export CLAUDE_CODE_EFFORT_LEVEL="${AGENT_EFFORT_LEVEL}"
